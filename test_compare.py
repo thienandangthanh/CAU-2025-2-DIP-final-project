@@ -47,6 +47,7 @@ print()
 # Test 2: Check for test image and weights
 print("2. Checking test data availability...")
 test_image_path = "./lol_dataset/eval15/low/1.png"
+reference_image_path = "./lol_dataset/eval15/high/1.png"
 weights_path = "./weights/zero_dce.weights.h5"
 
 if not Path(test_image_path).exists():
@@ -54,6 +55,13 @@ if not Path(test_image_path).exists():
     print("   Please ensure LOL dataset is available")
     sys.exit(1)
 print(f"   ✅ Test image found: {test_image_path}")
+
+if Path(reference_image_path).exists():
+    print(f"   ✅ Reference image found: {reference_image_path}")
+    test_reference = True
+else:
+    print(f"   ⚠️  Warning: Reference image not found: {reference_image_path}")
+    test_reference = False
 
 if not Path(weights_path).exists():
     print(f"   ⚠️  Warning: Weights not found: {weights_path}")
@@ -185,8 +193,49 @@ except Exception as e:
     sys.exit(1)
 print()
 
-# Test 7: Individual image saving
-print("7. Testing individual image saving...")
+# Test 7: Reference image inclusion
+print("7. Testing reference image inclusion...")
+if test_reference:
+    try:
+        temp_dir = tempfile.mkdtemp()
+        output_path = os.path.join(temp_dir, "comparison_with_ref.png")
+        
+        compare_methods(
+            input_path=test_image_path,
+            weights_path=weights_path if test_zero_dce else None,
+            output_path=output_path,
+            methods=["autocontrast", "gamma"],  # Test with fewer methods for speed
+            save_individual=False,
+            reference_path=reference_image_path
+        )
+        
+        # Check output file exists
+        if not os.path.exists(output_path):
+            print(f"   ❌ Comparison with reference not created")
+            sys.exit(1)
+        
+        # Check file size (should be larger with reference image)
+        file_size = os.path.getsize(output_path)
+        if file_size == 0:
+            print(f"   ❌ Comparison output is empty")
+            sys.exit(1)
+        
+        print(f"   ✅ Comparison with reference created: {file_size} bytes")
+        
+        # Clean up
+        shutil.rmtree(temp_dir)
+        print("   ✅ Temporary files cleaned up")
+    except Exception as e:
+        print(f"   ❌ Reference image test failed: {e}")
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        sys.exit(1)
+else:
+    print("   ⚠️  Skipping reference image test (no reference image available)")
+print()
+
+# Test 8: Individual image saving
+print("8. Testing individual image saving...")
 try:
     temp_dir = tempfile.mkdtemp()
     output_path = os.path.join(temp_dir, "comparison.png")
@@ -224,8 +273,8 @@ except Exception as e:
     sys.exit(1)
 print()
 
-# Test 8: CLI main function (import check)
-print("8. Testing CLI main function...")
+# Test 9: CLI main function (import check)
+print("9. Testing CLI main function...")
 try:
     from compare import main
     
@@ -254,12 +303,18 @@ if test_zero_dce:
 else:
     print("  ⚠️  Zero-DCE tests skipped (no weights)")
 print("  ✅ Comparison visualization works")
+if test_reference:
+    print("  ✅ Reference image inclusion works")
+else:
+    print("  ⚠️  Reference image tests skipped (no reference)")
 print("  ✅ Individual image saving works")
 print("  ✅ CLI is properly configured")
 print()
 print("Example usage:")
 if test_zero_dce:
     print(f"  python compare.py -i {test_image_path} -w {weights_path} -o output.png")
+    if test_reference:
+        print(f"  python compare.py -i {test_image_path} -w {weights_path} -r {reference_image_path} -o output.png")
 else:
     print("  python compare.py -i <input> -w <weights> -o output.png")
 print("  python compare.py --help")

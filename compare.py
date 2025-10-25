@@ -152,13 +152,15 @@ def compare_methods(
     weights_path: str,
     output_path: str = None,
     methods: list = None,
-    save_individual: bool = False
+    save_individual: bool = False,
+    reference_path: str = None
 ):
     """Compare enhancement methods on a single image.
     
     Applies multiple enhancement methods to an input image and creates a
     side-by-side comparison visualization. Optionally saves individual
-    enhanced images.
+    enhanced images. Can include a reference (well-exposed) image for
+    comparison.
     
     Args:
         input_path: Path to input low-light image
@@ -166,10 +168,24 @@ def compare_methods(
         output_path: Path to save comparison image (if None, displays instead)
         methods: List of methods to compare (default: all methods)
         save_individual: Whether to save individual enhanced images (default: False)
+        reference_path: Path to reference (high-light) image (optional)
     """
     # Load original image
     print(f"Loading image: {input_path}")
     original_image = Image.open(input_path)
+    
+    # Load reference image if provided
+    reference_image = None
+    if reference_path:
+        if Path(reference_path).exists():
+            print(f"Loading reference image: {reference_path}")
+            reference_image = Image.open(reference_path)
+            # Ensure reference image is RGB
+            if reference_image.mode != "RGB":
+                reference_image = reference_image.convert("RGB")
+        else:
+            print(f"⚠️  Warning: Reference image not found: {reference_path}")
+            print("   Continuing without reference image...")
     
     # Default methods if not specified
     if methods is None:
@@ -183,7 +199,13 @@ def compare_methods(
         print("Model loaded successfully")
     
     # Apply enhancement methods
+    # Start with original image
     results = {"Original": original_image}
+    
+    # Add reference image if provided (insert after original)
+    if reference_image is not None:
+        results["Reference (Ground Truth)"] = reference_image
+    
     method_map = {
         "zero-dce": ("Zero-DCE", lambda: enhance_with_zero_dce(original_image, model)),
         "autocontrast": ("AutoContrast", lambda: enhance_with_autocontrast(original_image)),
@@ -252,6 +274,9 @@ Examples:
   # Compare all methods
   python compare.py -i input.jpg -w weights.h5 -o comparison.png
 
+  # Compare with reference (ground truth) image
+  python compare.py -i low/1.png -w weights.h5 -r high/1.png -o comparison.png
+
   # Compare specific methods only
   python compare.py -i input.jpg -w weights.h5 --methods zero-dce autocontrast
 
@@ -291,6 +316,12 @@ Examples:
         action="store_true",
         help="Save individual enhanced images to 'individual/' subdirectory"
     )
+    parser.add_argument(
+        "-r", "--reference",
+        type=str,
+        default=None,
+        help="Path to reference (well-exposed) image for comparison (optional)"
+    )
     
     args = parser.parse_args()
     
@@ -310,7 +341,8 @@ Examples:
             weights_path=args.weights,
             output_path=args.output,
             methods=args.methods,
-            save_individual=args.save_individual
+            save_individual=args.save_individual,
+            reference_path=args.reference
         )
         return 0
     except Exception as e:
