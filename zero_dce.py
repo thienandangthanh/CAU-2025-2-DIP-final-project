@@ -1,3 +1,4 @@
+#!/bin/env python
 """
 Title: Zero-DCE for low-light image enhancement
 Author: [Soumik Rakshit](http://github.com/soumik12345)
