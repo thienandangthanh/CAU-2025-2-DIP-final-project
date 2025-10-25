@@ -167,14 +167,19 @@ loss_exposure = 10 * exposure_loss(enhanced)
 
 ## Common Tasks
 
+**Note:** All commands below assume the virtual environment is activated. For agents, prepend activation command (e.g., `source .venv/bin/activate.fish &&` for fish shell).
+
 ### Running Training
 ```bash
-# Basic training
+# Basic training (assuming venv is activated)
 python train.py
 
 # Custom configuration
 python train.py --epochs 100 --batch-size 16 --learning-rate 1e-4 \
                 --dataset-path ./lol_dataset --save-path ./weights/model.h5
+
+# For agents (example with fish shell):
+source .venv/bin/activate.fish && python train.py --epochs 100
 ```
 
 ### Running Inference
@@ -184,6 +189,9 @@ python compare.py -i ./test_image.jpg -w ./weights/zero_dce_weights.h5 -o ./enha
 
 # Compare specific methods
 python compare.py -i input.jpg -w weights.h5 --methods zero-dce autocontrast clahe
+
+# For agents (example with bash shell):
+source .venv/bin/activate && python compare.py -i input.jpg -w weights.h5
 ```
 
 ### Testing Modules
@@ -196,6 +204,9 @@ python -c "from model import build_dce_net; model = build_dce_net(); model.summa
 
 # Test loss functions
 python -c "from loss import color_constancy_loss; import tensorflow as tf; x = tf.random.normal([1,256,256,3]); print(color_constancy_loss(x))"
+
+# For agents (example with fish shell):
+source .venv/bin/activate.fish && python -c "from model import build_dce_net; model = build_dce_net(); model.summary()"
 ```
 
 ## Refactoring Workflow
@@ -227,13 +238,63 @@ dependencies = [
 ```
 
 ### Environment Setup
+
+#### Initial Setup (After Cloning Repository)
+
+**Step 1: Create Virtual Environment**
 ```bash
-# Using uv (project uses uv)
+uv venv
+```
+
+This creates a `.venv/` directory in the project root.
+
+**Step 2: Activate Virtual Environment**
+
+The activation command depends on your operating system and shell:
+
+**Linux/macOS:**
+- **Bash/Zsh:** `source .venv/bin/activate`
+- **Fish:** `source .venv/bin/activate.fish`
+
+**Windows:**
+- **Command Prompt:** `.venv\Scripts\activate`
+- **PowerShell:** `.venv\Scripts\Activate.ps1`
+
+**Step 3: Install Dependencies**
+```bash
+# Using uv (recommended)
 uv sync
 
 # Or using pip
 pip install -r requirements.txt
 ```
+
+#### For AI Agents: Shell Detection and Virtual Environment Activation
+
+**CRITICAL:** Before running any Python scripts or commands, agents MUST:
+
+1. **Detect the current shell** from the user info context
+2. **Activate the virtual environment** using the appropriate command
+3. **Run Python commands within the activated environment**
+
+**Shell Detection Examples:**
+- User shell: `/usr/bin/bash` → Use `source .venv/bin/activate`
+- User shell: `/usr/bin/fish` → Use `source .venv/bin/activate.fish`
+- User shell: `cmd.exe` or Windows → Use `.venv\Scripts\activate`
+
+**Correct Workflow for Running Python:**
+```bash
+# Example for bash/zsh on Linux
+source .venv/bin/activate && python train.py --epochs 100
+
+# Example for fish shell on Linux
+source .venv/bin/activate.fish && python train.py --epochs 100
+
+# Example for Windows Command Prompt
+.venv\Scripts\activate && python train.py --epochs 100
+```
+
+**NEVER run Python commands directly without activating the virtual environment first.**
 
 ## Dataset Information
 
@@ -251,6 +312,15 @@ unzip -q lol_dataset.zip && rm lol_dataset.zip
 ```
 
 ## Important Notes for AI Agents
+
+### Virtual Environment Requirements
+- **ALWAYS activate the virtual environment** before running Python commands
+- **Detect the user's shell** from the user info context:
+  - `/usr/bin/bash` or `/bin/bash` → `source .venv/bin/activate`
+  - `/usr/bin/fish` or `/bin/fish` → `source .venv/bin/activate.fish`
+  - Windows shells → `.venv\Scripts\activate`
+- **Use command chaining** with `&&` to ensure activation happens before execution
+- **Example:** `source .venv/bin/activate.fish && python train.py`
 
 ### When Refactoring
 - **Preserve exact logic**: Don't "improve" algorithms unless explicitly asked
