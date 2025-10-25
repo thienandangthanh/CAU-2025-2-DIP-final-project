@@ -619,7 +619,7 @@ def main():
     parser.add_argument(
         "--save-path",
         type=str,
-        default="./weights/zero_dce_weights.h5",
+        default="./weights/zero_dce.weights.h5",
         help="Path to save trained model weights"
     )
     parser.add_argument(
@@ -949,12 +949,12 @@ if __name__ == "__main__":
 ```bash
 # Test with a sample image (requires trained weights)
 python compare.py -i ./lol_dataset/eval15/low/1.png \
-                  -w ./weights/zero_dce_weights.h5 \
+                  -w ./weights/zero_dce.weights.h5 \
                   -o ./comparison.png
 
 # Test specific methods only
 python compare.py -i ./lol_dataset/eval15/low/1.png \
-                  -w ./weights/zero_dce_weights.h5 \
+                  -w ./weights/zero_dce.weights.h5 \
                   --methods zero-dce autocontrast clahe
 
 # Test with individual saves

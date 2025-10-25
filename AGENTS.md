@@ -163,7 +163,7 @@ loss_exposure = 10 * exposure_loss(enhanced)
 #### Model Weights
 - Only save/load `dce_model` weights (not the wrapper)
 - Use `.h5` format for compatibility
-- Default path: `./weights/zero_dce_weights.h5`
+- Default path: `./weights/zero_dce.weights.h5`
 
 ## Common Tasks
 
@@ -185,7 +185,7 @@ source .venv/bin/activate.fish && python train.py --epochs 100
 ### Running Inference
 ```bash
 # Enhance single image and compare methods
-python compare.py -i ./test_image.jpg -w ./weights/zero_dce_weights.h5 -o ./enhanced.jpg
+python compare.py -i ./test_image.jpg -w ./weights/zero_dce.weights.h5 -o ./enhanced.jpg
 
 # Compare specific methods
 python compare.py -i input.jpg -w weights.h5 --methods zero-dce autocontrast clahe
