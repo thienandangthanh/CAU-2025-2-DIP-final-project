@@ -10,6 +10,65 @@ Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 """
 
 """
+## ⚠️ IMPORTANT NOTE - REFACTORED CODEBASE
+
+This file (`zero_dce.py`) contains the ORIGINAL MONOLITHIC IMPLEMENTATION and is kept
+for reference purposes only. The codebase has been refactored into modular components
+for better maintainability, reusability, and educational clarity.
+
+### 🎯 For New Users: Use the Modular Implementation
+
+**Please use the following modular files instead:**
+
+1. **Training:**
+   ```bash
+   python train.py --epochs 100 --batch-size 16
+   ```
+   See: `train.py` for the training script with CLI arguments
+
+2. **Inference and Comparison:**
+   ```bash
+   python compare.py -i input.jpg -w weights.h5 -o output.png
+   ```
+   See: `compare.py` for inference and comparison with classical methods
+
+### 📁 Modular Structure
+
+- **`dataset.py`** - Data loading and preprocessing
+- **`loss.py`** - All 4 unsupervised loss functions
+- **`model.py`** - DCE-Net architecture and ZeroDCE training wrapper
+- **`train.py`** - Training script with configurable CLI
+- **`compare.py`** - Inference and comparison tool
+- **`classical_methods.py`** - Classical enhancement methods
+
+### 📖 Documentation
+
+- **`README.md`** - Complete usage guide and examples
+- **`AGENTS.md`** - Technical documentation for AI agents
+- **`REFACTOR_PLAN.md`** - Detailed refactoring roadmap
+
+### ✅ Benefits of Modular Structure
+
+- Each module has a single, clear purpose
+- Functions can be imported and reused independently
+- Easier to test, debug, and extend
+- Better separation of concerns
+- More educational and maintainable
+
+### 🔧 Why Keep This File?
+
+This original implementation is maintained for:
+- Reference during development
+- Comparison with modular version
+- Understanding the complete flow in one place
+- Historical record of the original structure
+
+**For all practical purposes, please use the modular implementation above.**
+
+---
+"""
+
+"""
 ## Introduction
 
 **Zero-Reference Deep Curve Estimation** or **Zero-DCE** formulates low-light image
