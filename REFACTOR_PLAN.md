@@ -19,7 +19,7 @@ This document provides a detailed roadmap for refactoring the monolithic `zero_d
 - ✅ **Step 2:** `loss.py` - Complete (2025-10-25)
 - ✅ **Step 3:** `model.py` - Complete (2025-10-25)
 - ✅ **Step 4:** `train.py` - Complete (2025-10-25)
-- 🔄 **Step 5:** `compare.py` - Pending
+- ✅ **Step 5:** `compare.py` - Complete (2025-10-25)
 - 🔄 **Step 6:** Documentation updates - Pending
 
 ## Refactoring Steps
@@ -743,7 +743,7 @@ git commit -m "Refactor: Implement train.py - Training script with CLI
 
 ## Step 5: Implement `compare.py`
 
-**Status:** 🔄 Pending  
+**Status:** ✅ Complete (2025-10-25)
 **Estimated Time:** 40-50 minutes  
 **Dependencies:** Requires `model.py`
 
@@ -1005,18 +1005,151 @@ python compare.py -i ./test_image.jpg \
 - ✅ CLI arguments work as expected
 - ✅ Individual images saved when requested
 
-### Git Commit
+### Implementation Summary
+
+**Completed:** 2025-10-25
+
+**What was implemented:**
+
+**Phase 1: Initial Implementation**
+- ✅ Extracted and adapted `infer()` function as `enhance_with_zero_dce()` from zero_dce.py
+- ✅ Created `load_model_for_inference()` for model loading
+- ✅ Implemented 4 classical enhancement methods in compare.py:
+  * `enhance_with_autocontrast()` - PIL AutoContrast
+  * `enhance_with_histogram_eq()` - OpenCV Histogram Equalization
+  * `enhance_with_clahe()` - Contrast Limited Adaptive Histogram Equalization
+  * `enhance_with_gamma_correction()` - Gamma correction (gamma=2.2)
+- ✅ Implemented `compare_methods()` function for side-by-side visualization
+- ✅ Added comprehensive CLI with argparse (5 arguments)
+- ✅ Added individual image saving functionality
+- ✅ Added opencv-python>=4.8.0 to project dependencies (pyproject.toml)
+- ✅ Comprehensive docstrings (Google style) for all functions
+- ✅ Created `test_compare.py` for comprehensive regression testing
+
+**Phase 2: Reference Image Feature (Enhancement)**
+- ✅ Added optional `-r/--reference` CLI argument
+- ✅ Added `reference_path` parameter to `compare_methods()` function
+- ✅ Display reference (ground truth) image from LOL dataset
+- ✅ Position reference between original and enhanced images
+- ✅ Graceful error handling for missing reference image
+- ✅ Updated test suite with reference image test (Test 7)
+- ✅ Updated CLI help with usage examples
+
+**Phase 3: Modular Refactoring (Code Organization)**
+- ✅ Created `classical_methods.py` module (143 lines)
+  * Extracted all 4 classical enhancement methods from compare.py
+  * Added `CLASSICAL_METHODS` dictionary for method registration
+  * Added `get_available_methods()` helper function
+  * Added `get_method_info()` helper function
+  * Comprehensive docstrings for all functions
+- ✅ Refactored `compare.py` (reduced from 320 to 243 lines, 24% reduction)
+  * Imports from `classical_methods` module
+  * Simplified method invocation using `CLASSICAL_METHODS` dictionary
+  * Only contains Zero-DCE inference and visualization orchestration
+  * Better separation of concerns
+- ✅ Created `test_classical_methods.py` (186 lines, 9 test cases)
+  * Tests all 4 enhancement methods independently
+  * Tests CLASSICAL_METHODS dictionary structure
+  * Tests helper functions
+  * Tests with synthetic and real images
+  * Tests custom parameters
+- ✅ Updated `test_compare.py` to test module integration
+
+**Test Results:**
+```
+test_compare.py: All 9 test cases passed
+  ✅ Module imports successful (including cv2)
+  ✅ Image loading works (600x400 RGB)
+  ✅ All classical methods work:
+     - AutoContrast: 600x400 pixels
+     - Histogram Eq: 600x400 pixels
+     - CLAHE: 600x400 pixels
+     - Gamma Correction: 600x400 pixels
+  ✅ Zero-DCE model loading and inference work
+     - Output value range: [0, 251] (valid)
+  ✅ Comparison visualization created (3.9MB PNG with 5 methods)
+  ✅ Reference image inclusion works (2.9MB with reference)
+  ✅ Individual image saving works (separate files per method)
+  ✅ CLI help documentation complete
+
+test_classical_methods.py: All 9 test cases passed
+  ✅ Module imports work correctly
+  ✅ CLASSICAL_METHODS dictionary properly structured
+  ✅ get_available_methods() returns correct list
+  ✅ get_method_info() provides complete information
+  ✅ All 4 methods work on test images
+  ✅ Custom parameters work (CLAHE clip_limit, Gamma gamma)
+  ✅ All methods work on real LOL dataset images
+  ✅ Methods callable via CLASSICAL_METHODS dictionary
+
+Real-world test:
+  - Input: ./lol_dataset/eval15/low/1.png
+  - Reference: ./lol_dataset/eval15/high/1.png
+  - Methods: Zero-DCE, AutoContrast, CLAHE
+  - Output: 2.9MB comparison image with reference
+  - All enhancements visually distinct and correct
+```
+
+**Key Features:**
+- Supports 5 enhancement methods total (1 deep learning + 4 classical)
+- Flexible CLI allows selecting specific methods
+- Side-by-side comparison with original and optional reference image
+- Optional individual image export to subdirectory
+- Works with any image size (not restricted to 256x256)
+- Comprehensive error handling and user feedback
+- Modular architecture: classical methods can be used independently
+- Easy to extend with new classical methods via CLASSICAL_METHODS registry
+
+**Files Created:**
+- `compare.py` - Main comparison tool (243 lines)
+- `classical_methods.py` - Classical enhancement methods module (143 lines)
+- `test_compare.py` - Test suite for compare.py (243 lines)
+- `test_classical_methods.py` - Test suite for classical_methods.py (186 lines)
+
+### Git Commits
+
+**Commit 1: Initial Implementation**
 ```bash
-git add compare.py
+git add compare.py test_compare.py pyproject.toml
 git commit -m "Refactor: Implement compare.py - Inference and comparison tool
 
 - Extract inference logic from zero_dce.py
 - Add CLI with argparse for flexible usage
-- Implement Zero-DCE enhancement function
-- Add classical methods: AutoContrast, Histogram Eq, CLAHE, Gamma
+- Implement Zero-DCE enhancement function (enhance_with_zero_dce)
+- Add 4 classical enhancement methods
 - Add side-by-side comparison visualization
 - Support saving individual enhanced images
-- Add input validation and error handling
+- Add opencv-python>=4.8.0 to dependencies
+- Create test_compare.py for regression testing
+"
+```
+
+**Commit 2: Reference Image Feature**
+```bash
+git add compare.py test_compare.py
+git commit -m "Feature: Add optional reference image to compare.py
+
+- Add -r/--reference CLI argument for ground truth comparison
+- Display reference image as 'Reference (Ground Truth)' in comparisons
+- Position reference between original and enhanced images
+- Add graceful error handling for missing reference image
+- Update test suite with reference image test (Test 7)
+- Update CLI help with usage examples
+"
+```
+
+**Commit 3: Modular Refactoring**
+```bash
+git add classical_methods.py compare.py test_classical_methods.py test_compare.py
+git commit -m "Refactor: Extract classical methods into separate module
+
+- Create classical_methods.py with 4 enhancement methods
+- Add CLASSICAL_METHODS dictionary for method registration
+- Add get_available_methods() and get_method_info() helpers
+- Refactor compare.py to use imported methods
+- Reduce compare.py by 77 lines (24% reduction)
+- Create test_classical_methods.py (9 tests, all passing)
+- Update test_compare.py to test module integration
 "
 ```
 
@@ -1143,6 +1276,15 @@ After completing all steps, verify:
 ---
 
 **Last Updated:** 2025-10-25
-**Status:** In Progress - Steps 1-3 Complete, Steps 4-6 Pending
+**Status:** In Progress - Steps 1-5 Complete, Step 6 Pending
 **Estimated Total Time:** 2.5-3.5 hours
-**Time Spent:** ~100 minutes (Steps 1-3)
+**Time Spent:** ~200 minutes (Steps 1-5)
+
+## Step 5 Additional Notes
+
+Step 5 was implemented in three phases:
+1. **Initial Implementation** - Core comparison functionality with classical methods
+2. **Reference Image Feature** - Added optional ground truth comparison from LOL dataset
+3. **Modular Refactoring** - Extracted classical methods into separate module for better code organization
+
+This comprehensive approach resulted in a more maintainable, extensible, and well-tested codebase. The modular structure allows classical methods to be reused in other scripts and makes it easy to add new enhancement methods in the future.
