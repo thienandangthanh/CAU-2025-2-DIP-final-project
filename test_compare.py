@@ -31,14 +31,17 @@ try:
     from compare import (
         load_model_for_inference,
         enhance_with_zero_dce,
+        compare_methods,
+        main
+    )
+    from classical_methods import (
         enhance_with_autocontrast,
         enhance_with_histogram_eq,
         enhance_with_clahe,
         enhance_with_gamma_correction,
-        compare_methods,
-        main
+        CLASSICAL_METHODS
     )
-    print("   ✅ All imports successful")
+    print("   ✅ All imports successful from compare.py and classical_methods.py")
 except Exception as e:
     print(f"   ❌ Import failed: {e}")
     sys.exit(1)

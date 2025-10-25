@@ -1,8 +1,8 @@
 """Inference and comparison tool for Zero-DCE.
 
 This script provides functionality to enhance low-light images using Zero-DCE
-and compare the results with classical image enhancement methods including
-AutoContrast, Histogram Equalization, CLAHE, and Gamma Correction.
+and compare the results with classical image enhancement methods. It serves
+as a visualization tool to compare different enhancement approaches side-by-side.
 """
 
 import os
@@ -10,14 +10,14 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import argparse
 import numpy as np
-import cv2
 from pathlib import Path
-from PIL import Image, ImageOps
+from PIL import Image
 import matplotlib.pyplot as plt
 import keras
 import tensorflow as tf
 
 from model import ZeroDCE
+from classical_methods import CLASSICAL_METHODS
 
 
 def load_model_for_inference(weights_path: str) -> ZeroDCE:
@@ -62,89 +62,6 @@ def enhance_with_zero_dce(image: Image.Image, model: ZeroDCE) -> Image.Image:
     output_image = Image.fromarray(output_image.numpy())
     
     return output_image
-
-
-def enhance_with_autocontrast(image: Image.Image) -> Image.Image:
-    """Enhance using PIL AutoContrast.
-    
-    AutoContrast automatically normalizes the image by making the darkest
-    color black and the lightest color white, then redistributing the values.
-    
-    Args:
-        image: PIL Image (RGB)
-    
-    Returns:
-        Enhanced PIL Image (RGB)
-    """
-    return ImageOps.autocontrast(image)
-
-
-def enhance_with_histogram_eq(image: Image.Image) -> Image.Image:
-    """Enhance using histogram equalization.
-    
-    Applies histogram equalization to the luminance (Y) channel in YUV
-    color space, which improves contrast while preserving color information.
-    
-    Args:
-        image: PIL Image (RGB)
-    
-    Returns:
-        Enhanced PIL Image (RGB)
-    """
-    img_array = np.array(image)
-    img_yuv = cv2.cvtColor(img_array, cv2.COLOR_RGB2YUV)
-    
-    # Apply histogram equalization to Y channel
-    img_yuv[:, :, 0] = cv2.equalizeHist(img_yuv[:, :, 0])
-    
-    img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2RGB)
-    return Image.fromarray(img_output)
-
-
-def enhance_with_clahe(image: Image.Image, clip_limit: float = 2.0, tile_size: int = 8) -> Image.Image:
-    """Enhance using CLAHE (Contrast Limited Adaptive Histogram Equalization).
-    
-    CLAHE is an adaptive version of histogram equalization that operates on
-    small regions (tiles) of the image. The clip limit prevents over-amplification
-    of noise. Applied to the L channel in LAB color space.
-    
-    Args:
-        image: PIL Image (RGB)
-        clip_limit: Threshold for contrast limiting (default: 2.0)
-        tile_size: Size of grid for histogram equalization (default: 8)
-    
-    Returns:
-        Enhanced PIL Image (RGB)
-    """
-    img_array = np.array(image)
-    img_lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
-    
-    # Apply CLAHE to L channel
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile_size, tile_size))
-    img_lab[:, :, 0] = clahe.apply(img_lab[:, :, 0])
-    
-    img_output = cv2.cvtColor(img_lab, cv2.COLOR_LAB2RGB)
-    return Image.fromarray(img_output)
-
-
-def enhance_with_gamma_correction(image: Image.Image, gamma: float = 2.2) -> Image.Image:
-    """Enhance using gamma correction.
-    
-    Gamma correction applies a power-law transformation to adjust image
-    brightness. Gamma < 1 brightens the image, gamma > 1 darkens it.
-    For low-light enhancement, typically use gamma = 2.2 (1/gamma = 0.45).
-    
-    Args:
-        image: PIL Image (RGB)
-        gamma: Gamma value for correction (default: 2.2)
-    
-    Returns:
-        Enhanced PIL Image (RGB)
-    """
-    img_array = np.array(image) / 255.0
-    img_corrected = np.power(img_array, 1.0 / gamma)
-    img_output = (img_corrected * 255).astype(np.uint8)
-    return Image.fromarray(img_output)
 
 
 def compare_methods(
@@ -206,20 +123,21 @@ def compare_methods(
     if reference_image is not None:
         results["Reference (Ground Truth)"] = reference_image
     
-    method_map = {
-        "zero-dce": ("Zero-DCE", lambda: enhance_with_zero_dce(original_image, model)),
-        "autocontrast": ("AutoContrast", lambda: enhance_with_autocontrast(original_image)),
-        "histogram-eq": ("Histogram Eq", lambda: enhance_with_histogram_eq(original_image)),
-        "clahe": ("CLAHE", lambda: enhance_with_clahe(original_image)),
-        "gamma": ("Gamma Correction", lambda: enhance_with_gamma_correction(original_image))
-    }
-    
     print("\nApplying enhancement methods...")
     for method_key in methods:
-        if method_key in method_map:
-            method_name, enhance_fn = method_map[method_key]
+        # Handle Zero-DCE separately
+        if method_key == "zero-dce":
+            print(f"  - Zero-DCE")
+            results["Zero-DCE"] = enhance_with_zero_dce(original_image, model)
+        # Handle classical methods from classical_methods module
+        elif method_key in CLASSICAL_METHODS:
+            method_info = CLASSICAL_METHODS[method_key]
+            method_name = method_info["name"]
+            enhance_fn = method_info["function"]
             print(f"  - {method_name}")
-            results[method_name] = enhance_fn()
+            results[method_name] = enhance_fn(original_image)
+        else:
+            print(f"  ⚠️  Warning: Unknown method '{method_key}', skipping...")
     
     # Create comparison plot
     num_images = len(results)
