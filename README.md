@@ -66,8 +66,11 @@ zero-dce-keras/
 
 ### Prerequisites
 
-- Python 3.13+
+- [Python 3.13+](https://www.python.org/downloads/)
+- [uv - Python project and package manager](https://docs.astral.sh/uv/getting-started/installation/)
 - CUDA-capable GPU (recommended for training)
+  - [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
+  - [NVIDIA driver](https://www.nvidia.com/en-us/drivers/)
 - 4GB+ GPU memory for training
 
 ### Setup
@@ -81,9 +84,6 @@ cd <directory storing this source code>
 ```bash
 # Using uv (recommended)
 uv venv
-
-# Or using standard Python
-python -m venv .venv
 ```
 
 3. **Activate virtual environment**
@@ -103,11 +103,8 @@ source .venv/bin/activate.fish
 
 4. **Install dependencies**
 ```bash
-# Using uv (recommended)
+# Using uv
 uv sync
-
-# Or using pip
-pip install -e .
 ```
 
 ### Download LOL Dataset
@@ -235,19 +232,19 @@ Input Image → DCE-Net → Curve Parameters → Iterative Enhancement → Outpu
 ```
 Input (H×W×3)
     ↓
-Conv1 (32 filters, 3×3, ReLU) ──────────┐
-    ↓                                    │
-Conv2 (32 filters, 3×3, ReLU) ────┐     │
-    ↓                              │     │
-Conv3 (32 filters, 3×3, ReLU) ─┐  │     │
-    ↓                           │  │     │
-Conv4 (32 filters, 3×3, ReLU)  │  │     │
-    ↓                           │  │     │
-Conv5 (32 filters, 3×3, ReLU)  │  │     │
-    ↓ ← Concat ← ← ← ← ← ← ← ← ┘  │     │
-Conv6 (32 filters, 3×3, ReLU)     │     │
-    ↓ ← Concat ← ← ← ← ← ← ← ← ← ─┘     │
-Conv7 (32 filters, 3×3, ReLU)           │
+Conv1 (32 filters, 3×3, ReLU) ─────────┐
+    ↓                                  │
+Conv2 (32 filters, 3×3, ReLU) ────┐    │
+    ↓                             │    │
+Conv3 (32 filters, 3×3, ReLU) ─┐  │    │
+    ↓                          │  │    │
+Conv4 (32 filters, 3×3, ReLU)  │  │    │
+    ↓                          │  │    │
+Conv5 (32 filters, 3×3, ReLU)  │  │    │
+    ↓ ← Concat ← ← ← ← ← ← ← ← ┘  │    │
+Conv6 (32 filters, 3×3, ReLU)     │    │
+    ↓ ← Concat ← ← ← ← ← ← ← ← ← ─┘    │
+Conv7 (32 filters, 3×3, ReLU)          │
     ↓ ← Concat ← ← ← ← ← ← ← ← ← ← ← ← ┘
 Conv8 (24 filters, 3×3, Tanh)
     ↓
@@ -400,9 +397,12 @@ The model produces visually pleasing results that:
 
 ### Training Time
 
-- **Hardware:** NVIDIA GPU (e.g., RTX 3080)
-- **Time per epoch:** ~1-2 minutes (400 images, batch size 16)
-- **Total training time:** ~1.5-3 hours (100 epochs)
+- **Hardware:**
+  - GPU: NVIDIA RTX 3070 8GB
+  - CPU: Intel Core i7 12700
+  - RAM: 32GB
+- **Time per epoch:** ~2-15 seconds (400 images, batch size 16)
+- **Total training time:** ~4 minutes (100 epochs)
 
 ### Inference Time
 
@@ -425,7 +425,7 @@ If you use this code in your research, please cite the original Zero-DCE paper:
 
 ## References
 
-- **Paper:** [Zero-Reference Deep Curve Estimation for Low-Light Image Enhancement](https://arxiv.org/abs/2001.06826) (CVPR 2020)
+- **Paper:** [Zero-Reference Deep Curve Estimation for Low-Light Image Enhancement](https://openaccess.thecvf.com/content_CVPR_2020/html/Guo_Zero-Reference_Deep_Curve_Estimation_for_Low-Light_Image_Enhancement_CVPR_2020_paper.html) (CVPR 2020)
 - **Original Keras Example:** [Keras Zero-DCE Tutorial](https://keras.io/examples/vision/zero_dce/)
 - **LOL Dataset:** [Low-Light Image Dataset](https://huggingface.co/datasets/geekyrakshit/LoL-Dataset)
 - **Adobe Curves:** [Curves adjustment in Adobe Photoshop](https://helpx.adobe.com/photoshop/using/curves-adjustment.html)
