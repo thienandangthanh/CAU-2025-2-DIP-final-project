@@ -31,15 +31,35 @@ zero-dce-keras/
 ├── classical_methods.py        # Classical enhancement methods
 ├── zero_dce.py                 # Original monolithic implementation (reference)
 ├── test_*.py                   # Test suites for each module
+│   ├── test_dataset.py
+│   ├── test_loss.py
+│   ├── test_model.py
+│   ├── test_train.py
+│   ├── test_compare.py
+│   └── test_classical_methods.py
 ├── lol_dataset/                # LOL Dataset (485 train + 15 test images)
-│   ├── our485/low/             # Training low-light images
-│   ├── our485/high/            # Training normal-light images (ground truth)
-│   └── eval15/low/             # Test low-light images
+│   ├── our485/                 # Training set (485 pairs)
+│   │   ├── low/                # Training low-light images
+│   │   └── high/               # Training normal-light images (ground truth)
+│   └── eval15/                 # Test set (15 pairs)
+│       ├── low/                # Test low-light images
+│       └── high/               # Test normal-light images (ground truth)
 ├── weights/                    # Trained model weights
+│   └── zero_dce.weights.h5     # Keras model weights
 ├── training_plots/             # Training curve visualizations
-├── pyproject.toml              # Project dependencies
+│   ├── total_loss.png
+│   ├── illumination_smoothness_loss.png
+│   ├── spatial_constancy_loss.png
+│   ├── color_constancy_loss.png
+│   └── exposure_loss.png
+├── outputs/                    # Generated comparison outputs
+├── docs/                       # Documentation
+├── pyproject.toml              # Project dependencies (uv)
+├── uv.lock                     # Lock file for dependencies
+├── .gitignore                  # Git ignore rules
 ├── AGENTS.md                   # Instructions for AI coding agents
-└── REFACTOR_PLAN.md            # Detailed refactoring roadmap
+├── REFACTOR_PLAN.md            # Detailed refactoring roadmap
+└── README.md                   # This file
 ```
 
 ## Installation
