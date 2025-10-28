@@ -63,12 +63,26 @@ zero-dce-keras/
 ├── model.py           # DCE-Net architecture + ZeroDCE training model
 ├── train.py           # Training script with CLI arguments
 ├── compare.py         # Inference and comparison with classical methods
+├── gui/               # GUI application (PyQt6)
+│   ├── __init__.py
+│   ├── main_window.py
+│   ├── widgets/       # Custom UI widgets
+│   ├── dialogs/       # Dialog windows
+│   ├── utils/         # GUI utilities
+│   │   ├── model_loader.py
+│   │   └── settings.py
+│   └── resources/     # Icons, images, stylesheets
+├── tests/             # All test modules (pytest)
+│   ├── __init__.py
+│   ├── test_gui_utils_model_loader.py
+│   └── test_*.py      # More test modules
 ├── zero_dce.py        # Original monolithic implementation (reference)
 ├── lol_dataset/       # LOL Dataset (485 train + 15 test images)
 │   ├── our485/low/    # Training low-light images
 │   ├── our485/high/   # Training normal-light images (not used in training)
 │   └── eval15/low/    # Test low-light images
-├── weights/           # Trained model weights (to be created)
+├── weights/           # Trained model weights
+├── pytest.ini         # Pytest configuration
 ├── AGENTS.md          # This file
 ├── REFACTOR_PLAN.md   # Detailed refactoring guide
 └── README.md          # Project documentation
@@ -194,19 +208,41 @@ python compare.py -i input.jpg -w weights.h5 --methods zero-dce autocontrast cla
 source .venv/bin/activate && python compare.py -i input.jpg -w weights.h5
 ```
 
-### Testing Modules
+### Running Tests
+
+**Test Location:** All tests are in the `tests/` directory at the project root.
+
 ```bash
-# Test dataset loading
-python -c "from dataset import get_dataset; train, val, test = get_dataset(); print(train)"
+# Run all tests
+pytest
 
-# Test model building
-python -c "from model import build_dce_net; model = build_dce_net(); model.summary()"
+# Run specific test file
+pytest tests/test_gui_utils_model_loader.py
 
-# Test loss functions
-python -c "from loss import color_constancy_loss; import tensorflow as tf; x = tf.random.normal([1,256,256,3]); print(color_constancy_loss(x))"
+# Run with verbose output
+pytest -v
+
+# Run tests with coverage report
+pytest --cov=gui --cov-report=html
 
 # For agents (example with fish shell):
-source .venv/bin/activate.fish && python -c "from model import build_dce_net; model = build_dce_net(); model.summary()"
+source .venv/bin/activate.fish && pytest -v
+source .venv/bin/activate.fish && pytest tests/test_gui_utils_model_loader.py
+```
+
+**Available Test Markers (defined in pytest.ini):**
+```bash
+# Run only unit tests (fast, no external dependencies)
+pytest -m unit
+
+# Run only integration tests (may require model weights)
+pytest -m integration
+
+# Run GUI-related tests
+pytest -m gui
+
+# Skip slow tests
+pytest -m "not slow"
 ```
 
 ## Refactoring Workflow
@@ -311,6 +347,214 @@ wget https://huggingface.co/datasets/geekyrakshit/LoL-Dataset/resolve/main/lol_d
 unzip -q lol_dataset.zip && rm lol_dataset.zip
 ```
 
+## Testing Guidelines
+
+### Test Organization
+
+**CRITICAL:** This project follows pytest best practices for test organization.
+
+#### Test Directory Structure
+```
+repo/
+├── gui/                              # Source code
+│   └── utils/
+│       └── model_loader.py           # Module to test
+├── tests/                            # All tests go here
+│   ├── __init__.py
+│   └── test_gui_utils_model_loader.py  # Tests for gui/utils/model_loader.py
+└── pytest.ini                        # Pytest configuration
+```
+
+**Rules:**
+1. **All tests MUST be in the `tests/` directory at the project root**
+2. **Test files MUST start with `test_`** (e.g., `test_model_loader.py`)
+3. **Test file names should mirror the module path** being tested
+   - Module: `gui/utils/model_loader.py` → Test: `tests/test_gui_utils_model_loader.py`
+   - Module: `gui/widgets/image_panel.py` → Test: `tests/test_gui_widgets_image_panel.py`
+4. **Test classes MUST start with `Test`** (e.g., `class TestModelLoader`)
+5. **Test functions MUST start with `test_`** (e.g., `def test_load_model()`)
+
+#### Why `tests/` at Root Level (Not `gui/tests/`)?
+- ✅ Separates tests from distributable code
+- ✅ Standard Python/pytest convention
+- ✅ Allows testing interactions between modules (`gui`, `model`, `dataset`)
+- ✅ Simplifies test discovery with pytest
+- ✅ Easier to exclude from package distribution
+
+### Writing Tests
+
+#### Test File Template
+```python
+"""Tests for <module_name> module.
+
+Brief description of what's being tested.
+"""
+
+import pytest
+from gui.utils.model_loader import ModelLoader  # Import module under test
+
+
+class TestFeatureName:
+    """Tests for specific feature or class."""
+
+    def test_something_works(self):
+        """Test that something works as expected."""
+        # Arrange
+        loader = ModelLoader()
+        
+        # Act
+        result = loader.some_method()
+        
+        # Assert
+        assert result is not None
+
+
+    def test_error_handling(self):
+        """Test that errors are handled correctly."""
+        loader = ModelLoader()
+        
+        with pytest.raises(ValueError):
+            loader.invalid_operation()
+```
+
+#### Using Test Markers
+Mark tests to categorize them (defined in `pytest.ini`):
+
+```python
+import pytest
+
+@pytest.mark.unit
+def test_fast_unit_test():
+    """Fast test with no external dependencies."""
+    assert 1 + 1 == 2
+
+@pytest.mark.integration
+def test_with_real_model():
+    """Test that requires actual model weights."""
+    # May skip if weights not available
+    pass
+
+@pytest.mark.gui
+def test_gui_component():
+    """Test for GUI components."""
+    pass
+
+@pytest.mark.slow
+def test_time_consuming():
+    """Test that takes significant time."""
+    pass
+```
+
+#### Testing Best Practices
+
+1. **Use fixtures for common setup:**
+```python
+@pytest.fixture
+def model_loader():
+    """Provide a fresh ModelLoader instance for each test."""
+    return ModelLoader()
+
+def test_with_fixture(model_loader):
+    assert model_loader.is_model_loaded() is False
+```
+
+2. **Use `tmp_path` for file operations:**
+```python
+def test_file_operation(tmp_path):
+    """Test that creates temporary files."""
+    test_file = tmp_path / "test.h5"
+    test_file.write_bytes(b"dummy")
+    # File automatically cleaned up after test
+```
+
+3. **Skip tests conditionally:**
+```python
+import pytest
+from pathlib import Path
+
+def test_requires_weights():
+    """Test that needs real model weights."""
+    weights_path = "./weights/zero_dce.weights.h5"
+    if not Path(weights_path).exists():
+        pytest.skip("Model weights not found")
+    
+    # Test code here
+```
+
+4. **Group related tests in classes:**
+```python
+class TestModelLoading:
+    """All tests related to loading models."""
+    
+    def test_load_valid_model(self):
+        pass
+    
+    def test_load_invalid_model(self):
+        pass
+
+class TestModelInference:
+    """All tests related to model inference."""
+    
+    def test_inference_on_image(self):
+        pass
+```
+
+5. **Write descriptive test names and docstrings:**
+```python
+def test_load_model_raises_file_not_found_when_weights_missing(self):
+    """Test that load_model raises FileNotFoundError for missing weights file.
+    
+    This ensures the user gets a clear error message instead of a cryptic
+    exception when the weights file doesn't exist.
+    """
+    loader = ModelLoader()
+    
+    with pytest.raises(FileNotFoundError) as exc_info:
+        loader.load_model("/nonexistent/path.h5")
+    
+    assert "not found" in str(exc_info.value).lower()
+```
+
+### Running Tests as an Agent
+
+**Always activate the virtual environment first:**
+
+```bash
+# Detect user's shell from user info context
+# For fish shell:
+source .venv/bin/activate.fish && pytest tests/test_gui_utils_model_loader.py -v
+
+# For bash/zsh:
+source .venv/bin/activate && pytest tests/test_gui_utils_model_loader.py -v
+```
+
+### Test Coverage
+
+Check test coverage to ensure all code is tested:
+
+```bash
+# Generate coverage report
+source .venv/bin/activate.fish && pytest --cov=gui --cov-report=term-missing
+
+# Generate HTML coverage report
+source .venv/bin/activate.fish && pytest --cov=gui --cov-report=html
+# Opens htmlcov/index.html to view detailed coverage
+```
+
+### When to Write Tests
+
+**ALWAYS write tests when:**
+1. Creating a new module or class
+2. Adding new features or methods
+3. Fixing bugs (write a test that reproduces the bug first)
+4. Refactoring code (ensure tests pass before and after)
+
+**Test-Driven Development (TDD) workflow:**
+1. Write a failing test for the desired functionality
+2. Implement the minimum code to make the test pass
+3. Refactor while keeping tests green
+4. Repeat
+
 ## Important Notes for AI Agents
 
 ### Virtual Environment Requirements
@@ -372,6 +616,39 @@ git commit -m "Refactor: Implement <module_name> - <description>"
 
 ---
 
-**Last Updated:** 2025-10-25  
+**Last Updated:** 2025-10-28  
 **Maintained By:** Graduate students in Digital Image Processing course  
 **For Questions:** Refer to `REFACTOR_PLAN.md` for detailed implementation steps
+
+## Quick Reference for AI Agents
+
+### File Locations Checklist
+- ✅ Source code → Root level or `gui/` for GUI modules
+- ✅ Tests → `tests/` directory at root
+- ✅ Configuration → Root level (`pytest.ini`, `pyproject.toml`)
+- ✅ Documentation → Root level or `docs/`
+
+### Before Running Any Command
+```bash
+# 1. Check user's shell from user info
+# 2. Activate virtual environment
+# 3. Run the command
+
+# Example (fish shell):
+source .venv/bin/activate.fish && <command>
+```
+
+### Test File Naming Convention
+```
+Module: gui/utils/model_loader.py
+  ↓
+Test: tests/test_gui_utils_model_loader.py
+
+Module: gui/widgets/image_panel.py
+  ↓
+Test: tests/test_gui_widgets_image_panel.py
+
+Module: dataset.py (root level)
+  ↓
+Test: tests/test_dataset.py
+```
