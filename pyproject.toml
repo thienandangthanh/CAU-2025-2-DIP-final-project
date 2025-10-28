@@ -1,5 +1,5 @@
 [project]
-name = "redo-zero-dce-keras"
+name = "zero-dce-keras"
 version = "0.1.0"
 description = "Zero-DCE: Zero-Reference Deep Curve Estimation for low-light image enhancement in Keras 3"
 readme = "README.md"

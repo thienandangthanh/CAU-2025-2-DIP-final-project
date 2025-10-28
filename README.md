@@ -22,7 +22,7 @@ Re-implementation of **Zero-Reference Deep Curve Estimation** in Keras 3 for low
 ## Project Structure
 
 ```
-redo-zero-dce-keras/
+zero-dce-keras/
 ├── dataset.py                  # Data loading and preprocessing
 ├── loss.py                     # Unsupervised loss functions
 ├── model.py                    # DCE-Net architecture and ZeroDCE model
@@ -52,10 +52,9 @@ redo-zero-dce-keras/
 
 ### Setup
 
-1. **Clone the repository**
+1. **Change current directory**
 ```bash
-git clone <repository-url>
-cd redo-zero-dce-keras
+cd <directory storing this source code>
 ```
 
 2. **Create virtual environment**

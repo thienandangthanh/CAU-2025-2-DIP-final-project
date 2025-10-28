@@ -959,7 +959,7 @@ wheels = [
 ]
 
 [[package]]
-name = "redo-zero-dce-keras"
+name = "zero-dce-keras"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

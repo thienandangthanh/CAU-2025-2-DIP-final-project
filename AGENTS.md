@@ -57,7 +57,7 @@ where `r_n` are learned curve parameters
 ### Current Refactoring Target
 
 ```
-redo-zero-dce-keras/
+zero-dce-keras/
 ├── dataset.py          # Dataset loading and TensorFlow data pipelines
 ├── loss.py            # Four unsupervised loss functions
 ├── model.py           # DCE-Net architecture + ZeroDCE training model
