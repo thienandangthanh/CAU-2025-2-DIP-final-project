@@ -217,3 +217,5 @@ __marimo__/
 
 weights/
 lol_dataset/
+training_plots/
+outputs/
