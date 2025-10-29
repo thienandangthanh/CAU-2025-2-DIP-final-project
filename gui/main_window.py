@@ -188,6 +188,13 @@ class MainWindow(QMainWindow):
         open_action.triggered.connect(self._open_image)
         file_menu.addAction(open_action)
 
+        # Recent Files submenu
+        self.recent_files_menu = QMenu("Recent &Files", self)
+        file_menu.addMenu(self.recent_files_menu)
+        self._update_recent_files_menu()
+
+        file_menu.addSeparator()
+
         # Save Enhanced Image
         self.save_action = QAction("&Save Enhanced Image...", self)
         self.save_action.setShortcut(QKeySequence.StandardKey.Save)
@@ -249,6 +256,58 @@ class MainWindow(QMainWindow):
 
     # ==================== Menu Actions ====================
 
+    def _update_recent_files_menu(self):
+        """Update the Recent Files submenu with current list of recent files."""
+        # Clear existing menu items
+        self.recent_files_menu.clear()
+
+        # Get recent files list
+        recent_files = self.settings.get_recent_files()
+
+        if not recent_files:
+            # Show empty state
+            empty_action = QAction("(Empty)", self)
+            empty_action.setEnabled(False)
+            self.recent_files_menu.addAction(empty_action)
+        else:
+            # Add action for each recent file
+            for filepath in recent_files:
+                # Check if file still exists
+                file_exists = Path(filepath).exists()
+
+                # Get filename for display (truncate if too long)
+                filename = Path(filepath).name
+                if len(filename) > 50:
+                    filename = filename[:47] + "..."
+
+                # Create action
+                action = QAction(filename, self)
+                action.setStatusTip(filepath)
+
+                # Disable if file no longer exists
+                if not file_exists:
+                    action.setEnabled(False)
+                    action.setText(f"{filename} (not found)")
+                else:
+                    # Connect to open the file
+                    action.triggered.connect(
+                        lambda checked=False, path=filepath: self._load_image(path)
+                    )
+
+                self.recent_files_menu.addAction(action)
+
+            # Add separator and Clear action
+            self.recent_files_menu.addSeparator()
+            clear_action = QAction("&Clear Recent Files", self)
+            clear_action.triggered.connect(self._clear_recent_files)
+            self.recent_files_menu.addAction(clear_action)
+
+    def _clear_recent_files(self):
+        """Clear the recent files list."""
+        self.settings.clear_recent_files()
+        self._update_recent_files_menu()
+        self.statusBar().showMessage("Recent files cleared", 2000)
+
     def _open_image(self):
         """Open file dialog to select an image."""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -296,6 +355,9 @@ class MainWindow(QMainWindow):
 
             # Add to recent files
             self.settings.add_recent_file(filepath)
+
+            # Update recent files menu
+            self._update_recent_files_menu()
 
             # Update UI state
             self._update_ui_state()
@@ -530,19 +592,17 @@ class MainWindow(QMainWindow):
 
             # Display in output panel with metadata
             pixmap = ImageProcessor.pil_to_pixmap(enhanced_image)
-            
+
             # Generate display name based on input image
             if self.input_panel.get_image_path():
                 input_path = Path(self.input_panel.get_image_path())
                 display_name = f"{input_path.stem}_enhanced{input_path.suffix}"
             else:
                 display_name = "enhanced_image.png"
-            
+
             # Pass display_name - will show "In Memory" for size
             self.output_panel.set_image_from_pixmap(
-                pixmap,
-                image_path=None,
-                display_name=display_name
+                pixmap, image_path=None, display_name=display_name
             )
 
             # Update UI state
