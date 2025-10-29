@@ -61,6 +61,7 @@ class ImagePanel(QWidget):
         self.image_path: Optional[str] = None
         self.display_name: Optional[str] = None  # For enhanced images
         self.is_processing = False
+        self.enhancement_time: Optional[str] = None  # For displaying enhancement timing
 
         # Enable drag and drop
         self.setAcceptDrops(True)
@@ -130,7 +131,7 @@ class ImagePanel(QWidget):
             """
         )
         self.info_label.hide()  # Hidden by default
-        
+
         # Raise to ensure it's on top of the image
         self.info_label.raise_()
 
@@ -192,10 +193,10 @@ class ImagePanel(QWidget):
             return False
 
     def set_image_from_pixmap(
-        self, 
-        pixmap: QPixmap, 
+        self,
+        pixmap: QPixmap,
         image_path: Optional[str] = None,
-        display_name: Optional[str] = None
+        display_name: Optional[str] = None,
     ):
         """Set image from a QPixmap object.
 
@@ -247,10 +248,10 @@ class ImagePanel(QWidget):
     def _update_info_overlay(self):
         """Update the info overlay with image information."""
         # If no path and no display name, hide overlay
-        if self.image_path is None and not hasattr(self, 'display_name'):
+        if self.image_path is None and not hasattr(self, "display_name"):
             self.info_label.hide()
             return
-        
+
         if self.image_path is None and self.display_name is None:
             self.info_label.hide()
             return
@@ -269,26 +270,33 @@ class ImagePanel(QWidget):
             size_text = f"{size_kb:.1f} KB"
         else:
             # Enhanced image - use display info
-            filename = self.display_name if hasattr(self, 'display_name') else "Enhanced"
+            filename = (
+                self.display_name if hasattr(self, "display_name") else "Enhanced"
+            )
             # Always show "In Memory" for unsaved images
             size_text = "In Memory"
 
         # Format info text
-        info_text = f"{filename}\n{width}×{height} px\n{size_text}"
+        info_text = f"{filename}\n{width}x{height} px\n{size_text}"
+
+        # Add enhancement timing if available
+        if self.enhancement_time is not None:
+            info_text += f"\nEnhanced in {self.enhancement_time}"
+
         self.info_label.setText(info_text)
-        
+
         # Adjust size to fit content
         self.info_label.adjustSize()
-        
+
         # Position in bottom-left corner of image_label
         # Add small margin from edges
         x_pos = 10
         y_pos = self.image_label.height() - self.info_label.height() - 10
-        
+
         # Ensure position is valid (not negative)
         if y_pos < 0:
             y_pos = 10  # Fallback to top if not enough space
-            
+
         self.info_label.move(x_pos, y_pos)
         self.info_label.show()
         self.info_label.raise_()  # Ensure it's on top
@@ -299,9 +307,10 @@ class ImagePanel(QWidget):
         self.image_path = None
         self.display_name = None
         self.is_processing = False
+        self.enhancement_time = None
         self.info_label.hide()
         self._show_placeholder()
-        
+
         # Emit cleared signal to notify parent
         self.cleared.emit()
 
@@ -315,7 +324,7 @@ class ImagePanel(QWidget):
         self.is_processing = processing
 
         if processing:
-            self.image_label.setText(f"⏳ {message}")
+            self.image_label.setText(f"{message}")
             self.image_label.setStyleSheet(
                 """
                 QLabel {
@@ -368,6 +377,25 @@ class ImagePanel(QWidget):
             self._update_info_overlay()
         else:
             self.info_label.hide()
+
+    def set_enhancement_time(self, time_str: Optional[str]):
+        """Set the enhancement time to display in info overlay.
+
+        This method is used to display timing information for enhanced images.
+        Call this after enhancement completes with the formatted time string.
+
+        Args:
+            time_str: Formatted time string (e.g., "2.34s" or "1m 34s"),
+                     or None to clear the timing display
+
+        Example:
+            >>> panel.set_enhancement_time("2.34s")
+            >>> panel.set_enhancement_time(None)  # Clear timing
+        """
+        self.enhancement_time = time_str
+        # Update overlay if image is currently displayed
+        if self.current_pixmap is not None:
+            self._update_info_overlay()
 
     # ==================== Event Handlers ====================
 

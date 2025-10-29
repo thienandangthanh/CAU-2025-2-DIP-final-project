@@ -725,8 +725,13 @@ class MainWindow(QMainWindow):
             self.enhance_button.set_completed()
             self.output_panel.set_processing(False)
 
-            # Update status bar with timing information
+            # Get formatted time string
             time_str = result.format_time()
+
+            # Update output panel info overlay with timing
+            self.output_panel.set_enhancement_time(time_str)
+
+            # Update status bar with timing information
             self.statusBar().showMessage(f"Enhanced successfully in {time_str}", 5000)
 
             # Enable save action
