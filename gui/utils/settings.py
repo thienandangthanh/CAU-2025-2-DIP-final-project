@@ -89,7 +89,7 @@ class AppSettings:
         Returns:
             True if auto-load is enabled
         """
-        return self.settings.value("model/auto_load", False, type=bool)
+        return self.settings.value("model/auto_load", True, type=bool)
 
     def set_auto_load_model(self, enabled: bool) -> None:
         """Set whether to auto-load model on startup.
