@@ -12,8 +12,9 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
+import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -31,7 +32,7 @@ from PyQt6.QtGui import QAction, QKeySequence
 
 from gui.widgets import ImagePanel, EnhanceButton
 from gui.dialogs import ErrorDialog
-from gui.utils import ModelLoader, ImageProcessor, AppSettings
+from gui.utils import ModelLoader, ImageProcessor, AppSettings, EnhancementResult
 
 
 class EnhancementWorker(QThread):
@@ -100,6 +101,15 @@ class MainWindow(QMainWindow):
         self.current_input_image = None  # PIL Image
         self.current_enhanced_image = None  # PIL Image
         self.enhancement_worker = None
+
+        # Enhancement timing and results (future-proof for multi-method comparison)
+        self._enhancement_results: Dict[
+            str, EnhancementResult
+        ] = {}  # Stores all enhancement results
+        self._enhancement_start_time: Optional[float] = (
+            None  # Track timing for current operation
+        )
+        self._current_enhancement_method: str = "Zero-DCE"  # Current method name
 
         # Initialize UI
         self._init_ui()
@@ -654,6 +664,9 @@ class MainWindow(QMainWindow):
             return
 
         try:
+            # Capture start time for timing measurement
+            self._enhancement_start_time = time.perf_counter()
+
             # Set processing state
             self.enhance_button.set_processing(True)
             self.output_panel.set_processing(True, "Enhancing...")
@@ -681,6 +694,15 @@ class MainWindow(QMainWindow):
             enhanced_image: Enhanced PIL Image
         """
         try:
+            # Calculate elapsed time and create result object
+            elapsed = time.perf_counter() - self._enhancement_start_time
+            result = EnhancementResult(
+                enhanced_image, self._current_enhancement_method, elapsed
+            )
+
+            # Store result (future-proof for multi-method comparison)
+            self._enhancement_results[self._current_enhancement_method] = result
+
             # Store enhanced image
             self.current_enhanced_image = enhanced_image
 
@@ -702,7 +724,10 @@ class MainWindow(QMainWindow):
             # Update UI state
             self.enhance_button.set_completed()
             self.output_panel.set_processing(False)
-            self.statusBar().showMessage("Enhancement completed successfully", 3000)
+
+            # Update status bar with timing information
+            time_str = result.format_time()
+            self.statusBar().showMessage(f"Enhanced successfully in {time_str}", 5000)
 
             # Enable save action
             self._update_ui_state()
