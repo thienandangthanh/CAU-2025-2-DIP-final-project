@@ -230,6 +230,13 @@ class MainWindow(QMainWindow):
         load_model_action.triggered.connect(self._load_model)
         model_menu.addAction(load_model_action)
 
+        # Default Weights submenu
+        self.default_weights_menu = QMenu("&Default Weights", self)
+        model_menu.addMenu(self.default_weights_menu)
+        self._update_default_weights_menu()
+
+        model_menu.addSeparator()
+
         # Model Info
         model_info_action = QAction("Model &Info", self)
         model_info_action.setStatusTip("Show current model information")
@@ -307,6 +314,81 @@ class MainWindow(QMainWindow):
         self.settings.clear_recent_files()
         self._update_recent_files_menu()
         self.statusBar().showMessage("Recent files cleared", 2000)
+
+    def _update_default_weights_menu(self):
+        """Update the Default Weights submenu with available weight files."""
+        # Clear existing menu items
+        self.default_weights_menu.clear()
+
+        # Get available weights
+        weights_dir = self.settings.get_weights_directory()
+        available_weights = ModelLoader.list_available_weights(weights_dir)
+
+        if not available_weights:
+            # Show empty state
+            empty_action = QAction("(No weights found)", self)
+            empty_action.setEnabled(False)
+            self.default_weights_menu.addAction(empty_action)
+        else:
+            # Add action for each weight file
+            for weights_path in available_weights:
+                weights_file = Path(weights_path)
+
+                # Extract epoch if available
+                epoch_str = self._extract_epoch_from_filename(weights_file.name)
+                display_name = weights_file.name
+                if epoch_str:
+                    display_name = f"{weights_file.name} ({epoch_str})"
+
+                # Create action
+                action = QAction(display_name, self)
+                action.setStatusTip(weights_path)
+
+                # Mark currently loaded model with checkmark
+                # Normalize paths for comparison (resolve to absolute paths)
+                if self.model_loader.is_model_loaded():
+                    current_path = Path(self.model_loader.get_weights_path()).resolve()
+                    menu_path = Path(weights_path).resolve()
+                    if current_path == menu_path:
+                        action.setCheckable(True)
+                        action.setChecked(True)
+
+                # Connect to load the weights and save as default
+                action.triggered.connect(
+                    lambda checked=False, path=weights_path: self._load_model_weights(
+                        path, save_as_default=True
+                    )
+                )
+
+                self.default_weights_menu.addAction(action)
+
+    def _extract_epoch_from_filename(self, filename: str) -> str:
+        """Extract training epoch from filename.
+
+        Args:
+            filename: Model filename
+
+        Returns:
+            Epoch string (e.g., "Epoch 100") or empty string if not found
+        """
+        if not filename:
+            return ""
+
+        import re
+
+        # Try different patterns
+        patterns = [
+            r"epoch[_-]?(\d+)",  # epoch100, epoch_100, epoch-100
+            r"e(\d+)",  # e100
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, filename, re.IGNORECASE)
+            if match:
+                epoch_num = match.group(1)
+                return f"Epoch {epoch_num}"
+
+        return ""
 
     def _open_image(self):
         """Open file dialog to select an image."""
@@ -461,11 +543,12 @@ class MainWindow(QMainWindow):
         if file_path:
             self._load_model_weights(file_path)
 
-    def _load_model_weights(self, filepath: str):
+    def _load_model_weights(self, filepath: str, save_as_default: bool = False):
         """Load model weights from file.
 
         Args:
             filepath: Path to weights file
+            save_as_default: If True, save this as the default model in settings
         """
         try:
             self.statusBar().showMessage("Loading model...", 0)
@@ -485,10 +568,21 @@ class MainWindow(QMainWindow):
             # Load model
             self.model_loader.load_model(filepath)
 
+            # Save as default if requested
+            if save_as_default:
+                filepath_obj = Path(filepath)
+                # Save the directory and filename separately
+                self.settings.set_weights_directory(str(filepath_obj.parent))
+                self.settings.set_default_model_file(filepath_obj.name)
+                self.settings.sync()
+
             # Update status
             filename = Path(filepath).name
             self.model_status_label.setText(f"Model: {filename}")
             self.statusBar().showMessage("Model loaded successfully", 3000)
+
+            # Update default weights menu to mark current model
+            self._update_default_weights_menu()
 
             # Update UI state
             self._update_ui_state()
@@ -508,7 +602,7 @@ class MainWindow(QMainWindow):
                 message="Default model weights file not found at startup.",
                 details=f"Expected path: {model_path}",
                 solution="Please check the model file path in settings or train the model first. "
-                "You can also load a model manually via Model → Load Model Weights.",
+                "You can also load a model manually via Model -> Load Model Weights.",
                 parent=self,
             )
             self.statusBar().showMessage("Model not found - please load manually", 5000)
