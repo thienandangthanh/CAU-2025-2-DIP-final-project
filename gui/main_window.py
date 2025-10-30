@@ -31,7 +31,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QKeySequence
 
 from gui.widgets import ImagePanel, EnhanceButton
-from gui.dialogs import ErrorDialog
+from gui.dialogs import ErrorDialog, PreferencesDialog
 from gui.utils import ModelLoader, ImageProcessor, AppSettings, EnhancementResult
 
 
@@ -230,6 +230,15 @@ class MainWindow(QMainWindow):
         clear_action.setStatusTip("Clear the input image")
         clear_action.triggered.connect(self._clear_input)
         edit_menu.addAction(clear_action)
+
+        edit_menu.addSeparator()
+
+        # Preferences
+        preferences_action = QAction("&Preferences...", self)
+        preferences_action.setShortcut(QKeySequence("Ctrl+,"))
+        preferences_action.setStatusTip("Open application preferences")
+        preferences_action.triggered.connect(self._show_preferences)
+        edit_menu.addAction(preferences_action)
 
         # ==================== Model Menu ====================
         model_menu = menubar.addMenu("&Model")
@@ -516,6 +525,18 @@ class MainWindow(QMainWindow):
         self.current_enhanced_image = None
         self._update_ui_state()
         self.statusBar().showMessage("Cleared", 2000)
+
+    def _show_preferences(self):
+        """Show the preferences dialog."""
+        dialog = PreferencesDialog(self)
+        dialog.settings_changed.connect(self._on_settings_changed)
+        dialog.exec()
+
+    def _on_settings_changed(self):
+        """Handle settings changed signal from preferences dialog."""
+        # Settings have been saved, we can respond to changes here if needed
+        # For now, just show a status message
+        self.statusBar().showMessage("Preferences saved", 2000)
 
     def _on_input_panel_cleared(self):
         """Handle input panel cleared signal.
