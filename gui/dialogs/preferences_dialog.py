@@ -59,22 +59,22 @@ class GeneralTab(QWidget):
         model_group = QGroupBox("Model Settings")
         model_layout = QFormLayout()
         
-        # Default model weights path
-        weights_layout = QHBoxLayout()
-        self.weights_path_edit = QLineEdit()
-        self.weights_path_edit.setPlaceholderText("Path to model weights file")
-        self.weights_path_edit.setToolTip(
-            "Default model weights file to load on startup.\n"
-            "Must be a .h5 or .weights.h5 file."
+        # Weights directory
+        weights_dir_layout = QHBoxLayout()
+        self.weights_dir_edit = QLineEdit()
+        self.weights_dir_edit.setPlaceholderText("Directory containing model weights files")
+        self.weights_dir_edit.setToolTip(
+            "Directory where model weights files are stored.\n"
+            "The 'Default Weights' submenu will list all .h5 files in this directory."
         )
-        weights_layout.addWidget(self.weights_path_edit, 1)
+        weights_dir_layout.addWidget(self.weights_dir_edit, 1)
         
-        self.browse_weights_btn = QPushButton("Browse...")
-        self.browse_weights_btn.clicked.connect(self._browse_weights)
-        self.browse_weights_btn.setToolTip("Select a model weights file")
-        weights_layout.addWidget(self.browse_weights_btn)
+        self.browse_dir_btn = QPushButton("Browse...")
+        self.browse_dir_btn.clicked.connect(self._browse_weights_directory)
+        self.browse_dir_btn.setToolTip("Select weights directory")
+        weights_dir_layout.addWidget(self.browse_dir_btn)
         
-        model_layout.addRow("Default Model Weights:", weights_layout)
+        model_layout.addRow("Weights Directory:", weights_dir_layout)
         
         # Auto-load model on startup
         self.auto_load_checkbox = QCheckBox("Auto-load model on startup")
@@ -172,23 +172,23 @@ class GeneralTab(QWidget):
         # Add stretch to push everything to the top
         layout.addStretch()
     
-    def _browse_weights(self):
-        """Open file dialog to browse for model weights."""
-        current_path = self.weights_path_edit.text()
-        if current_path and Path(current_path).exists():
-            start_dir = str(Path(current_path).parent)
+    def _browse_weights_directory(self):
+        """Open directory dialog to browse for weights directory."""
+        current_dir = self.weights_dir_edit.text()
+        if current_dir and Path(current_dir).exists():
+            start_dir = current_dir
         else:
             start_dir = self.settings.get_weights_directory()
         
-        file_path, _ = QFileDialog.getOpenFileName(
+        directory = QFileDialog.getExistingDirectory(
             self,
-            "Select Model Weights File",
+            "Select Weights Directory",
             start_dir,
-            "Model Weights (*.h5 *.weights.h5);;All Files (*)"
+            QFileDialog.Option.ShowDirsOnly
         )
         
-        if file_path:
-            self.weights_path_edit.setText(file_path)
+        if directory:
+            self.weights_dir_edit.setText(directory)
     
     def _update_gpu_status(self):
         """Update GPU status label."""
@@ -220,8 +220,8 @@ class GeneralTab(QWidget):
     def _load_settings(self):
         """Load current settings into UI controls."""
         # Model settings
-        full_path = self.settings.get_full_model_path()
-        self.weights_path_edit.setText(full_path)
+        weights_dir = self.settings.get_weights_directory()
+        self.weights_dir_edit.setText(weights_dir)
         self.auto_load_checkbox.setChecked(self.settings.get_auto_load_model())
         
         # Display settings
@@ -255,30 +255,30 @@ class GeneralTab(QWidget):
         Returns:
             True if settings saved successfully, False otherwise
         """
-        # Validate model weights path
-        weights_path = self.weights_path_edit.text().strip()
-        if weights_path:
-            path = Path(weights_path)
-            if not path.exists():
+        # Validate weights directory
+        weights_dir = self.weights_dir_edit.text().strip()
+        if weights_dir:
+            dir_path = Path(weights_dir)
+            if not dir_path.exists():
                 QMessageBox.warning(
                     self,
-                    "Invalid Model Path",
-                    f"The model weights file does not exist:\n{weights_path}\n\n"
-                    "Please select a valid file or leave empty to use default."
+                    "Invalid Directory",
+                    f"The weights directory does not exist:\n{weights_dir}\n\n"
+                    "Please select a valid directory."
                 )
                 return False
             
-            if not (path.suffix == '.h5' or path.name.endswith('.weights.h5')):
+            if not dir_path.is_dir():
                 QMessageBox.warning(
                     self,
-                    "Invalid File Type",
-                    "Model weights file must be a .h5 or .weights.h5 file."
+                    "Not a Directory",
+                    f"The path is not a directory:\n{weights_dir}\n\n"
+                    "Please select a directory."
                 )
                 return False
             
-            # Split into directory and filename
-            self.settings.set_weights_directory(str(path.parent))
-            self.settings.set_default_model_file(path.name)
+            # Save weights directory
+            self.settings.set_weights_directory(weights_dir)
         
         # Model settings
         self.settings.set_auto_load_model(self.auto_load_checkbox.isChecked())
@@ -305,7 +305,7 @@ class GeneralTab(QWidget):
             Dictionary of setting name to value
         """
         return {
-            'weights_path': self.weights_path_edit.text(),
+            'weights_dir': self.weights_dir_edit.text(),
             'auto_load': self.auto_load_checkbox.isChecked(),
             'zoom_mode': self.zoom_mode_combo.currentData(),
             'sync_zoom': self.sync_zoom_checkbox.isChecked(),
@@ -413,7 +413,7 @@ class PreferencesDialog(QDialog):
     def _connect_change_signals(self):
         """Connect signals to track changes (dirty state)."""
         # General tab signals
-        self.general_tab.weights_path_edit.textChanged.connect(self._on_settings_changed)
+        self.general_tab.weights_dir_edit.textChanged.connect(self._on_settings_changed)
         self.general_tab.auto_load_checkbox.stateChanged.connect(self._on_settings_changed)
         self.general_tab.zoom_mode_combo.currentIndexChanged.connect(self._on_settings_changed)
         self.general_tab.sync_zoom_checkbox.stateChanged.connect(self._on_settings_changed)

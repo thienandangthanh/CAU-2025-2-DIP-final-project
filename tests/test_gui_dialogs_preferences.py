@@ -134,7 +134,7 @@ class TestGeneralTab:
     def test_general_tab_initialization(self, general_tab):
         """Test that GeneralTab initializes correctly."""
         assert general_tab is not None
-        assert hasattr(general_tab, 'weights_path_edit')
+        assert hasattr(general_tab, 'weights_dir_edit')
         assert hasattr(general_tab, 'auto_load_checkbox')
         assert hasattr(general_tab, 'zoom_mode_combo')
         assert hasattr(general_tab, 'sync_zoom_checkbox')
@@ -146,7 +146,6 @@ class TestGeneralTab:
         """Test that settings are loaded correctly into UI controls."""
         # Set known values
         settings.set_weights_directory("./test_weights")
-        settings.set_default_model_file("test.weights.h5")
         settings.set_auto_load_model(True)
         settings.set_default_zoom_mode("actual")
         settings.set_sync_zoom(False)
@@ -158,7 +157,7 @@ class TestGeneralTab:
         general_tab._load_settings()
         
         # Verify UI reflects settings
-        assert "test.weights.h5" in general_tab.weights_path_edit.text()
+        assert general_tab.weights_dir_edit.text() == "./test_weights"
         assert general_tab.auto_load_checkbox.isChecked() is True
         assert general_tab.zoom_mode_combo.currentData() == "actual"
         assert general_tab.sync_zoom_checkbox.isChecked() is False
@@ -166,10 +165,14 @@ class TestGeneralTab:
         assert general_tab.gpu_mode_combo.currentData() == "disable"
         assert general_tab.max_dimension_combo.currentData() == 2048
     
-    def test_save_settings_valid(self, general_tab, settings, sample_weights_file):
+    def test_save_settings_valid(self, general_tab, settings, tmp_path):
         """Test that settings save correctly with valid input."""
+        # Create a weights directory
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        
         # Set values in UI
-        general_tab.weights_path_edit.setText(sample_weights_file)
+        general_tab.weights_dir_edit.setText(str(weights_dir))
         general_tab.auto_load_checkbox.setChecked(False)
         general_tab.zoom_mode_combo.setCurrentIndex(
             general_tab.zoom_mode_combo.findData("fit")
@@ -190,7 +193,7 @@ class TestGeneralTab:
         assert result is True
         
         # Verify settings were saved
-        assert Path(sample_weights_file).name == settings.get_default_model_file()
+        assert settings.get_weights_directory() == str(weights_dir)
         assert settings.get_auto_load_model() is False
         assert settings.get_default_zoom_mode() == "fit"
         assert settings.get_sync_zoom() is True
@@ -198,43 +201,43 @@ class TestGeneralTab:
         assert settings.get_gpu_mode() == "auto"
         assert settings.get_max_image_dimension() == 8192
     
-    def test_save_settings_invalid_path(self, general_tab, qtbot, monkeypatch):
-        """Test that saving fails with invalid weights path."""
+    def test_save_settings_invalid_directory(self, general_tab, qtbot, monkeypatch):
+        """Test that saving fails with invalid directory."""
         # Mock QMessageBox.warning to avoid blocking
         def mock_warning(*args, **kwargs):
             pass
         
         monkeypatch.setattr(QMessageBox, 'warning', mock_warning)
         
-        # Set invalid path
-        general_tab.weights_path_edit.setText("/nonexistent/file.h5")
+        # Set non-existent directory
+        general_tab.weights_dir_edit.setText("/nonexistent/directory")
         
         # Save should fail
         result = general_tab.save_settings()
         assert result is False
     
-    def test_save_settings_invalid_file_type(self, general_tab, qtbot, tmp_path, monkeypatch):
-        """Test that saving fails with invalid file type."""
+    def test_save_settings_path_is_file(self, general_tab, qtbot, tmp_path, monkeypatch):
+        """Test that saving fails when path is a file, not directory."""
         # Mock QMessageBox.warning to avoid blocking
         def mock_warning(*args, **kwargs):
             pass
         
         monkeypatch.setattr(QMessageBox, 'warning', mock_warning)
         
-        # Create a file with wrong extension
-        wrong_file = tmp_path / "model.txt"
-        wrong_file.write_text("not a model")
+        # Create a file (not directory)
+        file_path = tmp_path / "not_a_directory.txt"
+        file_path.write_text("test")
         
-        general_tab.weights_path_edit.setText(str(wrong_file))
+        general_tab.weights_dir_edit.setText(str(file_path))
         
         # Save should fail
         result = general_tab.save_settings()
         assert result is False
     
-    def test_browse_weights_button(self, general_tab):
+    def test_browse_directory_button(self, general_tab):
         """Test that Browse button exists and is connected."""
-        assert general_tab.browse_weights_btn is not None
-        assert general_tab.browse_weights_btn.text() == "Browse..."
+        assert general_tab.browse_dir_btn is not None
+        assert general_tab.browse_dir_btn.text() == "Browse..."
     
     def test_gpu_status_label(self, general_tab):
         """Test that GPU status label is displayed."""
@@ -256,7 +259,7 @@ class TestGeneralTab:
         state = general_tab.get_initial_state()
         
         assert isinstance(state, dict)
-        assert 'weights_path' in state
+        assert 'weights_dir' in state
         assert 'auto_load' in state
         assert 'zoom_mode' in state
         assert 'sync_zoom' in state
@@ -338,10 +341,14 @@ class TestPreferencesDialog:
         # Should be dirty
         assert preferences_dialog._is_dirty()
     
-    def test_save_settings_method(self, preferences_dialog, sample_weights_file):
+    def test_save_settings_method(self, preferences_dialog, tmp_path):
         """Test that _save_settings method works."""
+        # Create a weights directory
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        
         # Set a value
-        preferences_dialog.general_tab.weights_path_edit.setText(sample_weights_file)
+        preferences_dialog.general_tab.weights_dir_edit.setText(str(weights_dir))
         
         # Save
         result = preferences_dialog._save_settings()
@@ -522,10 +529,14 @@ class TestPreferencesDialog:
         # Dialog should be rejected
         assert preferences_dialog.result() == preferences_dialog.DialogCode.Rejected
 
-    def test_apply_button_handler(self, preferences_dialog, qtbot, sample_weights_file, monkeypatch):
+    def test_apply_button_handler(self, preferences_dialog, qtbot, tmp_path, monkeypatch):
         """Test that Apply button saves settings without closing."""
+        # Create a weights directory
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        
         # Make a change
-        preferences_dialog.general_tab.weights_path_edit.setText(sample_weights_file)
+        preferences_dialog.general_tab.weights_dir_edit.setText(str(weights_dir))
         
         # Mock QMessageBox.information to avoid blocking
         def mock_information(*args, **kwargs):
@@ -543,17 +554,21 @@ class TestPreferencesDialog:
 class TestPreferencesDialogIntegration:
     """Integration tests for PreferencesDialog."""
     
-    def test_settings_persist_after_save(self, preferences_dialog, settings, sample_weights_file):
+    def test_settings_persist_after_save(self, preferences_dialog, settings, tmp_path):
         """Test that settings persist after saving."""
+        # Create a weights directory
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        
         # Set values
-        preferences_dialog.general_tab.weights_path_edit.setText(sample_weights_file)
+        preferences_dialog.general_tab.weights_dir_edit.setText(str(weights_dir))
         preferences_dialog.general_tab.auto_load_checkbox.setChecked(False)
         
         # Save
         preferences_dialog._save_settings()
         
         # Verify persistence
-        assert Path(sample_weights_file).name == settings.get_default_model_file()
+        assert settings.get_weights_directory() == str(weights_dir)
         assert settings.get_auto_load_model() is False
     
     def test_multiple_tabs_in_future(self, preferences_dialog):
@@ -564,10 +579,14 @@ class TestPreferencesDialogIntegration:
         # Tab widget should support adding more tabs
         assert hasattr(preferences_dialog.tab_widget, 'addTab')
     
-    def test_all_settings_round_trip(self, preferences_dialog, settings, sample_weights_file):
+    def test_all_settings_round_trip(self, preferences_dialog, settings, tmp_path):
         """Test that all settings can be set and retrieved correctly."""
+        # Create a weights directory
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        
         # Set all settings
-        preferences_dialog.general_tab.weights_path_edit.setText(sample_weights_file)
+        preferences_dialog.general_tab.weights_dir_edit.setText(str(weights_dir))
         preferences_dialog.general_tab.auto_load_checkbox.setChecked(True)
         preferences_dialog.general_tab.zoom_mode_combo.setCurrentIndex(
             preferences_dialog.general_tab.zoom_mode_combo.findData("fit")
@@ -585,7 +604,7 @@ class TestPreferencesDialogIntegration:
         preferences_dialog._save_settings()
         
         # Verify all settings
-        assert Path(sample_weights_file).name == settings.get_default_model_file()
+        assert settings.get_weights_directory() == str(weights_dir)
         assert settings.get_auto_load_model() is True
         assert settings.get_default_zoom_mode() == "fit"
         assert settings.get_sync_zoom() is True
@@ -597,37 +616,34 @@ class TestPreferencesDialogIntegration:
 class TestPreferencesDialogEdgeCases:
     """Edge case tests for PreferencesDialog."""
     
-    def test_empty_weights_path(self, general_tab):
-        """Test that empty weights path is handled correctly."""
+    def test_empty_weights_directory(self, general_tab):
+        """Test that empty weights directory is handled correctly."""
         # Set empty path
-        general_tab.weights_path_edit.setText("")
+        general_tab.weights_dir_edit.setText("")
         
-        # Save should succeed (empty is allowed - uses default)
+        # Save should succeed (empty is allowed - keeps current)
         result = general_tab.save_settings()
         assert result is True
     
-    def test_whitespace_only_weights_path(self, general_tab):
-        """Test that whitespace-only path is handled correctly."""
+    def test_whitespace_only_weights_directory(self, general_tab):
+        """Test that whitespace-only directory is handled correctly."""
         # Set whitespace path
-        general_tab.weights_path_edit.setText("   ")
+        general_tab.weights_dir_edit.setText("   ")
         
         # Save should succeed (treated as empty)
         result = general_tab.save_settings()
         assert result is True
     
-    def test_relative_vs_absolute_paths(self, general_tab, sample_weights_file):
+    def test_relative_vs_absolute_paths(self, general_tab, tmp_path):
         """Test that both relative and absolute paths work."""
+        # Create a weights directory
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        
         # Test absolute path
-        general_tab.weights_path_edit.setText(sample_weights_file)
+        general_tab.weights_dir_edit.setText(str(weights_dir))
         result = general_tab.save_settings()
         assert result is True
-        
-        # Test relative path (if exists)
-        relative_path = Path(sample_weights_file).name
-        if Path(relative_path).exists():
-            general_tab.weights_path_edit.setText(relative_path)
-            result = general_tab.save_settings()
-            # May fail if file doesn't exist at relative location, which is expected
     
     def test_combo_box_invalid_index(self, general_tab):
         """Test that combo boxes handle invalid indices gracefully."""
@@ -658,17 +674,21 @@ class TestPreferencesDialogEdgeCases:
         # Should still track dirty state correctly
         assert preferences_dialog._is_dirty()
     
-    def test_settings_sync_called(self, preferences_dialog, sample_weights_file):
+    def test_settings_sync_called(self, preferences_dialog, tmp_path):
         """Test that settings.sync() is called after save."""
+        # Create a weights directory
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        
         # Set a value
-        preferences_dialog.general_tab.weights_path_edit.setText(sample_weights_file)
+        preferences_dialog.general_tab.weights_dir_edit.setText(str(weights_dir))
         
         # Save
         preferences_dialog._save_settings()
         
         # Create new settings instance to verify persistence
         new_settings = AppSettings()
-        assert Path(sample_weights_file).name == new_settings.get_default_model_file()
+        assert str(weights_dir) == new_settings.get_weights_directory()
 
 
 @pytest.mark.gui
@@ -681,7 +701,7 @@ class TestPreferencesDialogUI:
     
     def test_tooltips_exist(self, general_tab):
         """Test that important controls have tooltips."""
-        assert general_tab.weights_path_edit.toolTip() != ""
+        assert general_tab.weights_dir_edit.toolTip() != ""
         assert general_tab.auto_load_checkbox.toolTip() != ""
         assert general_tab.zoom_mode_combo.toolTip() != ""
         assert general_tab.gpu_mode_combo.toolTip() != ""
