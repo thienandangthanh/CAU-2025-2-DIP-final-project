@@ -181,7 +181,7 @@ loss_exposure = 10 * exposure_loss(enhanced)
 
 ## Common Tasks
 
-**Note:** All commands below assume the virtual environment is activated. For agents, prepend activation command (e.g., `source .venv/bin/activate.fish &&` for fish shell).
+**Note:** All commands below assume the virtual environment is activated. For agents, prepend activation command (e.g., `source .venv/bin/activate &&` for bash shell).
 
 ### Running Training
 ```bash
@@ -192,8 +192,8 @@ python train.py
 python train.py --epochs 100 --batch-size 16 --learning-rate 1e-4 \
                 --dataset-path ./lol_dataset --save-path ./weights/model.h5
 
-# For agents (example with fish shell):
-source .venv/bin/activate.fish && python train.py --epochs 100
+# For agents (example with bash shell):
+source .venv/bin/activate && python train.py --epochs 100
 ```
 
 ### Running Inference
@@ -225,9 +225,9 @@ pytest -v
 # Run tests with coverage report
 pytest --cov=gui --cov-report=html
 
-# For agents (example with fish shell):
-source .venv/bin/activate.fish && pytest -v
-source .venv/bin/activate.fish && pytest tests/test_gui_utils_model_loader.py
+# For agents (example with bash shell):
+source .venv/bin/activate && pytest -v
+source .venv/bin/activate && pytest tests/test_gui_utils_model_loader.py
 ```
 
 **Available Test Markers (defined in pytest.ini):**
@@ -309,24 +309,32 @@ pip install -r requirements.txt
 
 **CRITICAL:** Before running any Python scripts or commands, agents MUST:
 
-1. **Detect the current shell** from the user info context
+1. **Detect the current operating system** from the user info context
 2. **Activate the virtual environment** using the appropriate command
 3. **Run Python commands within the activated environment**
 
+**Default Shell by Operating System:**
+- **Linux:** Bash shell (`source .venv/bin/activate`)
+- **macOS:** Zsh shell (`source .venv/bin/activate`)
+- **Windows:** Command Prompt (`.venv\Scripts\activate`)
+
 **Shell Detection Examples:**
-- User shell: `/usr/bin/bash` → Use `source .venv/bin/activate`
-- User shell: `/usr/bin/fish` → Use `source .venv/bin/activate.fish`
-- User shell: `cmd.exe` or Windows → Use `.venv\Scripts\activate`
+- OS: Linux → Use `source .venv/bin/activate` (bash is default)
+- User shell: `/usr/bin/fish` → Use `source .venv/bin/activate.fish` (if explicitly fish)
+- OS: Windows → Use `.venv\Scripts\activate`
 
 **Correct Workflow for Running Python:**
 ```bash
-# Example for bash/zsh on Linux
+# Linux (default bash shell)
 source .venv/bin/activate && python train.py --epochs 100
 
-# Example for fish shell on Linux
+# macOS (default zsh shell)
+source .venv/bin/activate && python train.py --epochs 100
+
+# Linux with fish shell (if user explicitly uses fish)
 source .venv/bin/activate.fish && python train.py --epochs 100
 
-# Example for Windows Command Prompt
+# Windows Command Prompt
 .venv\Scripts\activate && python train.py --epochs 100
 ```
 
@@ -520,12 +528,15 @@ def test_load_model_raises_file_not_found_when_weights_missing(self):
 **Always activate the virtual environment first:**
 
 ```bash
-# Detect user's shell from user info context
-# For fish shell:
-source .venv/bin/activate.fish && pytest tests/test_gui_utils_model_loader.py -v
-
-# For bash/zsh:
+# Detect operating system from user info context
+# For Linux (default bash shell):
 source .venv/bin/activate && pytest tests/test_gui_utils_model_loader.py -v
+
+# For macOS (default zsh shell):
+source .venv/bin/activate && pytest tests/test_gui_utils_model_loader.py -v
+
+# For Linux with fish shell (if explicitly used):
+source .venv/bin/activate.fish && pytest tests/test_gui_utils_model_loader.py -v
 ```
 
 ### Test Coverage
@@ -534,10 +545,10 @@ Check test coverage to ensure all code is tested:
 
 ```bash
 # Generate coverage report
-source .venv/bin/activate.fish && pytest --cov=gui --cov-report=term-missing
+source .venv/bin/activate && pytest --cov=gui --cov-report=term-missing
 
 # Generate HTML coverage report
-source .venv/bin/activate.fish && pytest --cov=gui --cov-report=html
+source .venv/bin/activate && pytest --cov=gui --cov-report=html
 # Opens htmlcov/index.html to view detailed coverage
 ```
 
@@ -559,12 +570,13 @@ source .venv/bin/activate.fish && pytest --cov=gui --cov-report=html
 
 ### Virtual Environment Requirements
 - **ALWAYS activate the virtual environment** before running Python commands
-- **Detect the user's shell** from the user info context:
-  - `/usr/bin/bash` or `/bin/bash` → `source .venv/bin/activate`
-  - `/usr/bin/fish` or `/bin/fish` → `source .venv/bin/activate.fish`
-  - Windows shells → `.venv\Scripts\activate`
+- **Detect the operating system** from the user info context:
+  - Linux → `source .venv/bin/activate` (bash is default shell)
+  - macOS → `source .venv/bin/activate` (zsh is default shell)
+  - Windows → `.venv\Scripts\activate`
+- **Special case:** If user explicitly uses `/usr/bin/fish` shell → `source .venv/bin/activate.fish`
 - **Use command chaining** with `&&` to ensure activation happens before execution
-- **Example:** `source .venv/bin/activate.fish && python train.py`
+- **Example:** `source .venv/bin/activate && python train.py`
 
 ### When Refactoring
 - **Preserve exact logic**: Don't "improve" algorithms unless explicitly asked
@@ -630,12 +642,12 @@ git commit -m "Refactor: Implement <module_name> - <description>"
 
 ### Before Running Any Command
 ```bash
-# 1. Check user's shell from user info
+# 1. Check operating system from user info (Linux defaults to bash)
 # 2. Activate virtual environment
 # 3. Run the command
 
-# Example (fish shell):
-source .venv/bin/activate.fish && <command>
+# Example (Linux with default bash shell):
+source .venv/bin/activate && <command>
 ```
 
 ### Test File Naming Convention
