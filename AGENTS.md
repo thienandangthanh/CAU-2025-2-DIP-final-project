@@ -127,6 +127,7 @@ zero-dce-keras/
 - Use type hints where helpful
 - Docstrings for all public functions/classes (Google style)
 - Keep functions focused (single responsibility)
+- **NEVER use emojis in source code and documentation files** (comments, docstrings, variable names, etc.)
 
 ### Key Principles
 1. **Modularity**: Each file has a single, clear purpose
