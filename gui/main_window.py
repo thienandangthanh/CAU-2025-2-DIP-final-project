@@ -180,6 +180,9 @@ class MainWindow(QMainWindow):
 
         # Create status bar
         self._create_status_bar()
+        
+        # Initialize status display with default model
+        self._update_model_status_display()
 
         # Update UI state
         self._update_ui_state()
@@ -279,6 +282,22 @@ class MainWindow(QMainWindow):
         self.model_status_label = QLabel("No model loaded")
         self.model_status_label.setStyleSheet("QLabel { padding: 0 10px; }")
         self.statusBar().addPermanentWidget(self.model_status_label)
+    
+    def _update_model_status_display(self):
+        """Update the model status label in status bar.
+        
+        This reflects the currently loaded model.
+        Called when:
+        - A model is loaded
+        - Model is cleared
+        """
+        if self.model_loader.is_model_loaded():
+            # Show currently loaded model
+            filename = Path(self.model_loader.get_weights_path()).name
+            self.model_status_label.setText(f"Model: {filename}")
+        else:
+            # No model loaded
+            self.model_status_label.setText("No model loaded")
 
     # ==================== Menu Actions ====================
 
@@ -534,9 +553,15 @@ class MainWindow(QMainWindow):
 
     def _on_settings_changed(self):
         """Handle settings changed signal from preferences dialog."""
-        # Settings have been saved, we can respond to changes here if needed
-        # For now, just show a status message
-        self.statusBar().showMessage("Preferences saved", 2000)
+        # Reload settings to get the latest values
+        self.settings = AppSettings()
+        
+        # Update UI elements that depend on settings
+        self._update_model_status_display()
+        self._update_default_weights_menu()
+        
+        # Show confirmation
+        self.statusBar().showMessage("Preferences saved and applied", 2000)
 
     def _on_input_panel_cleared(self):
         """Handle input panel cleared signal.
@@ -599,21 +624,17 @@ class MainWindow(QMainWindow):
             # Load model
             self.model_loader.load_model(filepath)
 
-            # Save as default if requested
+            # Save directory as default if requested
             if save_as_default:
                 filepath_obj = Path(filepath)
-                # Save the directory and filename separately
+                # Save only the directory
                 self.settings.set_weights_directory(str(filepath_obj.parent))
-                self.settings.set_default_model_file(filepath_obj.name)
                 self.settings.sync()
 
-            # Update status
-            filename = Path(filepath).name
-            self.model_status_label.setText(f"Model: {filename}")
-            self.statusBar().showMessage("Model loaded successfully", 3000)
-
-            # Update default weights menu to mark current model
+            # Update status bar and menu
+            self._update_model_status_display()
             self._update_default_weights_menu()
+            self.statusBar().showMessage("Model loaded successfully", 3000)
 
             # Update UI state
             self._update_ui_state()
