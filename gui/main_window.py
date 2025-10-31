@@ -14,7 +14,7 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import time
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -26,13 +26,21 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QLabel,
     QMessageBox,
+    QPushButton,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QKeySequence
 
-from gui.widgets import ImagePanel, EnhanceButton
-from gui.dialogs import ErrorDialog, PreferencesDialog
-from gui.utils import ModelLoader, ImageProcessor, AppSettings, EnhancementResult
+from gui.widgets import ImagePanel, EnhanceButton, ComparisonGrid
+from gui.dialogs import ErrorDialog, PreferencesDialog, MethodSelectionDialog
+from gui.utils import (
+    ModelLoader,
+    ImageProcessor,
+    AppSettings,
+    EnhancementResult,
+    get_registry,
+    EnhancementRunnerThread,
+)
 
 
 class EnhancementWorker(QThread):
@@ -111,6 +119,12 @@ class MainWindow(QMainWindow):
         )
         self._current_enhancement_method: str = "Zero-DCE"  # Current method name
 
+        # Comparison mode state
+        self.comparison_mode = False
+        self.selected_methods: List[str] = []  # Methods selected for comparison
+        self.reference_image_path: Optional[str] = None  # Reference image path
+        self.comparison_runner: Optional[EnhancementRunnerThread] = None
+
         # Initialize UI
         self._init_ui()
 
@@ -143,9 +157,11 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
-        # Image panels layout (horizontal)
-        panels_layout = QHBoxLayout()
-        panels_layout.setSpacing(20)
+        # ===== Single Enhancement Mode View =====
+        self.single_mode_widget = QWidget()
+        single_mode_layout = QHBoxLayout(self.single_mode_widget)
+        single_mode_layout.setContentsMargins(0, 0, 0, 0)
+        single_mode_layout.setSpacing(20)
 
         # Input panel
         self.input_panel = ImagePanel(
@@ -155,18 +171,48 @@ class MainWindow(QMainWindow):
         self.input_panel.image_clicked.connect(self._open_image)
         self.input_panel.image_dropped.connect(self._load_dropped_image)
         self.input_panel.cleared.connect(self._on_input_panel_cleared)
-        panels_layout.addWidget(self.input_panel, 1)
+        single_mode_layout.addWidget(self.input_panel, 1)
 
         # Enhance button (centered between panels)
         button_container = QWidget()
         button_layout = QVBoxLayout(button_container)
         button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        button_layout.setSpacing(10)
 
         self.enhance_button = EnhanceButton()
         self.enhance_button.enhance_clicked.connect(self._enhance_image)
-        button_layout.addWidget(self.enhance_button)
+        button_layout.addWidget(self.enhance_button, 0, Qt.AlignmentFlag.AlignCenter)
 
-        panels_layout.addWidget(button_container)
+        # Compare button (below enhance button)
+        self.compare_button = QPushButton("Compare Methods")
+        self.compare_button.setMinimumHeight(40)
+        self.compare_button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                font-size: 13px;
+                font-weight: bold;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #0D47A1;
+            }
+            QPushButton:disabled {
+                background-color: #BDBDBD;
+                color: #757575;
+            }
+            """
+        )
+        self.compare_button.clicked.connect(self._start_comparison_mode)
+        button_layout.addWidget(self.compare_button, 0, Qt.AlignmentFlag.AlignCenter)
+
+        single_mode_layout.addWidget(button_container)
 
         # Output panel
         self.output_panel = ImagePanel(
@@ -174,13 +220,19 @@ class MainWindow(QMainWindow):
         )
         self.output_panel.image_clicked.connect(self._save_enhanced_image)
         self.output_panel.cleared.connect(self._on_output_panel_cleared)
-        panels_layout.addWidget(self.output_panel, 1)
+        single_mode_layout.addWidget(self.output_panel, 1)
 
-        main_layout.addLayout(panels_layout)
+        main_layout.addWidget(self.single_mode_widget)
+
+        # ===== Comparison Mode View =====
+        self.comparison_grid = ComparisonGrid(columns=3)
+        self.comparison_grid.cell_clicked.connect(self._on_comparison_cell_clicked)
+        self.comparison_grid.hide()  # Hidden by default
+        main_layout.addWidget(self.comparison_grid)
 
         # Create status bar
         self._create_status_bar()
-        
+
         # Initialize status display with default model
         self._update_model_status_display()
 
@@ -243,6 +295,19 @@ class MainWindow(QMainWindow):
         preferences_action.triggered.connect(self._show_preferences)
         edit_menu.addAction(preferences_action)
 
+        # ==================== View Menu ====================
+        view_menu = menubar.addMenu("&View")
+
+        # Toggle Comparison Mode
+        self.toggle_comparison_action = QAction("&Comparison Mode", self)
+        self.toggle_comparison_action.setShortcut(QKeySequence("C"))
+        self.toggle_comparison_action.setCheckable(True)
+        self.toggle_comparison_action.setStatusTip(
+            "Toggle comparison mode to compare multiple methods"
+        )
+        self.toggle_comparison_action.triggered.connect(self._toggle_comparison_mode)
+        view_menu.addAction(self.toggle_comparison_action)
+
         # ==================== Model Menu ====================
         model_menu = menubar.addMenu("&Model")
 
@@ -282,10 +347,10 @@ class MainWindow(QMainWindow):
         self.model_status_label = QLabel("No model loaded")
         self.model_status_label.setStyleSheet("QLabel { padding: 0 10px; }")
         self.statusBar().addPermanentWidget(self.model_status_label)
-    
+
     def _update_model_status_display(self):
         """Update the model status label in status bar.
-        
+
         This reflects the currently loaded model.
         Called when:
         - A model is loaded
@@ -555,11 +620,11 @@ class MainWindow(QMainWindow):
         """Handle settings changed signal from preferences dialog."""
         # Reload settings to get the latest values
         self.settings = AppSettings()
-        
+
         # Update UI elements that depend on settings
         self._update_model_status_display()
         self._update_default_weights_menu()
-        
+
         # Show confirmation
         self.statusBar().showMessage("Preferences saved and applied", 2000)
 
@@ -811,6 +876,9 @@ class MainWindow(QMainWindow):
         # Update enhance button
         self.enhance_button.set_ready(has_image and has_model)
 
+        # Update compare button (only needs image, not model)
+        self.compare_button.setEnabled(has_image)
+
         # Update save action
         self.save_action.setEnabled(has_enhanced)
 
@@ -845,5 +913,234 @@ class MainWindow(QMainWindow):
         ):
             if self.enhance_button.is_ready:
                 self._enhance_image()
+        # C to toggle comparison mode
+        elif event.key() == Qt.Key.Key_C:
+            self._toggle_comparison_mode()
         else:
             super().keyPressEvent(event)
+
+    # ==================== Comparison Mode ====================
+
+    def _toggle_comparison_mode(self):
+        """Toggle between single enhancement and comparison mode."""
+        if self.comparison_mode:
+            # Switch to single mode
+            self._switch_to_single_mode()
+        else:
+            # Switch to comparison mode
+            self._switch_to_comparison_mode()
+
+    def _switch_to_single_mode(self):
+        """Switch to single enhancement mode."""
+        self.comparison_mode = False
+        self.toggle_comparison_action.setChecked(False)
+
+        # Show single mode UI, hide comparison grid
+        self.single_mode_widget.show()
+        self.comparison_grid.hide()
+
+        # Update status bar
+        self.statusBar().showMessage("Switched to single enhancement mode", 2000)
+
+    def _switch_to_comparison_mode(self):
+        """Switch to comparison mode."""
+        # Check if we have an input image
+        if not self.current_input_image:
+            QMessageBox.warning(
+                self,
+                "No Input Image",
+                "Please load an input image before starting comparison mode.",
+            )
+            return
+
+        self.comparison_mode = True
+        self.toggle_comparison_action.setChecked(True)
+
+        # Hide single mode UI, show comparison grid
+        self.single_mode_widget.hide()
+        self.comparison_grid.show()
+
+        # Update status bar
+        self.statusBar().showMessage("Switched to comparison mode", 2000)
+
+        # Show method selection dialog
+        self._start_comparison_mode()
+
+    def _start_comparison_mode(self):
+        """Start comparison mode by showing method selection dialog."""
+        # Check if we have an input image
+        if not self.current_input_image:
+            QMessageBox.warning(
+                self,
+                "No Input Image",
+                "Please load an input image before starting comparison mode.",
+            )
+            return
+
+        # Show method selection dialog
+        dialog = MethodSelectionDialog(
+            model_loaded=self.model_loader.is_model_loaded(),
+            current_selection=self.selected_methods,
+            reference_path=self.reference_image_path,
+            parent=self,
+        )
+
+        if dialog.exec() == dialog.DialogCode.Accepted:
+            # Get selected methods and reference
+            self.selected_methods = dialog.get_selected_methods()
+            self.reference_image_path = dialog.get_reference_path()
+
+            # Run comparison
+            self._run_comparison()
+
+    def _run_comparison(self):
+        """Run comparison with selected methods."""
+        if not self.selected_methods:
+            return
+
+        # Switch to comparison mode if not already
+        if not self.comparison_mode:
+            self.comparison_mode = True
+            self.toggle_comparison_action.setChecked(True)
+            self.single_mode_widget.hide()
+            self.comparison_grid.show()
+
+        # Get method names for display
+        registry = get_registry()
+        method_names = {}
+        for method_key in self.selected_methods:
+            method_info = registry.get_method_info(method_key)
+            method_names[method_key] = method_info.name
+
+        # Set up comparison grid
+        has_reference = self.reference_image_path is not None
+        self.comparison_grid.set_methods(
+            self.selected_methods,
+            method_names,
+            show_input=True,
+            show_reference=has_reference,
+        )
+
+        # Update header
+        self.comparison_grid.update_header(len(self.selected_methods), has_reference)
+
+        # Set input image
+        input_pixmap = ImageProcessor.pil_to_pixmap(self.current_input_image)
+        self.comparison_grid.set_input_image(input_pixmap)
+
+        # Set reference image if provided
+        if has_reference:
+            try:
+                from PIL import Image
+
+                ref_image = Image.open(self.reference_image_path)
+                ref_pixmap = ImageProcessor.pil_to_pixmap(ref_image)
+                self.comparison_grid.set_reference_image(ref_pixmap)
+            except Exception as e:
+                QMessageBox.warning(
+                    self,
+                    "Reference Load Error",
+                    f"Failed to load reference image:\n{str(e)}",
+                )
+
+        # Run enhancement methods in background thread
+        self._run_comparison_thread()
+
+    def _run_comparison_thread(self):
+        """Run comparison in background thread."""
+        # Create comparison runner thread
+        self.comparison_runner = EnhancementRunnerThread(
+            image=self.current_input_image,
+            method_keys=self.selected_methods,
+            model=self.model_loader.get_model(),
+        )
+
+        # Connect signals
+        self.comparison_runner.method_started.connect(
+            self._on_comparison_method_started
+        )
+        self.comparison_runner.method_completed.connect(
+            self._on_comparison_method_completed
+        )
+        self.comparison_runner.method_failed.connect(self._on_comparison_method_failed)
+        self.comparison_runner.all_completed.connect(self._on_comparison_all_completed)
+
+        # Update UI
+        self.statusBar().showMessage(
+            f"Comparing {len(self.selected_methods)} methods..."
+        )
+
+        # Start thread
+        self.comparison_runner.start()
+
+    def _on_comparison_method_started(self, method_key: str):
+        """Handle comparison method started signal.
+
+        Args:
+            method_key: Method that started
+        """
+        self.comparison_grid.set_method_running(method_key)
+
+        registry = get_registry()
+        method_name = registry.get_method_info(method_key).name
+        self.statusBar().showMessage(f"Running {method_name}...")
+
+    def _on_comparison_method_completed(
+        self, method_key: str, result: EnhancementResult
+    ):
+        """Handle comparison method completed signal.
+
+        Args:
+            method_key: Method that completed
+            result: Enhancement result
+        """
+        # Convert PIL image to QPixmap
+        pixmap = ImageProcessor.pil_to_pixmap(result.image)
+
+        # Format timing text
+        timing_text = f"{result.elapsed_time:.2f}s"
+
+        # Update grid
+        self.comparison_grid.set_method_result(method_key, pixmap, timing_text)
+
+        # Store result
+        self._enhancement_results[method_key] = result
+
+    def _on_comparison_method_failed(self, method_key: str, error_message: str):
+        """Handle comparison method failed signal.
+
+        Args:
+            method_key: Method that failed
+            error_message: Error message
+        """
+        self.comparison_grid.set_method_error(method_key, error_message)
+
+    def _on_comparison_all_completed(self):
+        """Handle all comparison methods completed signal."""
+        completed_count = len(
+            [k for k in self.selected_methods if k in self._enhancement_results]
+        )
+        self.statusBar().showMessage(
+            f"Comparison complete: {completed_count}/{len(self.selected_methods)} methods succeeded",
+            5000,
+        )
+
+    def _on_comparison_cell_clicked(self, method_key: str):
+        """Handle comparison cell clicked.
+
+        Args:
+            method_key: Method key of clicked cell
+        """
+        # Future: Show expanded view of the result
+        # For now, just show in status bar
+        if method_key == "input":
+            self.statusBar().showMessage("Original input image", 2000)
+        elif method_key == "reference":
+            self.statusBar().showMessage("Reference image", 2000)
+        elif method_key in self._enhancement_results:
+            result = self._enhancement_results[method_key]
+            registry = get_registry()
+            method_name = registry.get_method_info(method_key).name
+            self.statusBar().showMessage(
+                f"{method_name}: {result.elapsed_time:.2f}s", 3000
+            )
