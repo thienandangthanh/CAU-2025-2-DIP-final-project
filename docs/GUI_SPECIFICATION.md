@@ -1,8 +1,8 @@
 # Zero-DCE GUI Application - Feature Specification
 
-> **Version:** 1.0.0-draft  
-> **Last Updated:** 2025-10-28  
-> **Status:** Planning Phase
+> **Version:** 2.1.0  
+> **Last Updated:** 2025-10-31  
+> **Status:** Phase 3 In Progress (Task 3.2 Complete - Comparison View)
 
 ## Overview
 
@@ -67,10 +67,13 @@ A cross-platform desktop application that provides an intuitive graphical user i
   - Supported save formats: JPG, PNG
   - Quality settings for JPEG (default: 95)
 
-- **Recent Files**
+- **Recent Files** ✅ IMPLEMENTED
   - Shows last 10 opened images
   - Clicking reopens the image
   - Stored in application settings
+  - "(Empty)" state when no recent files
+  - "Clear Recent Files" action
+  - Files that don't exist show "(not found)" and are disabled
 
 - **Exit (Ctrl+Q)**
   - Closes the application
@@ -81,28 +84,39 @@ A cross-platform desktop application that provides an intuitive graphical user i
   - Clears the input image
   - Resets both panels to placeholder state
 
-- **Preferences... (Ctrl+,)**
+- **Preferences... (Ctrl+,)** ✅ IMPLEMENTED
   - Opens preferences dialog (see Section 4)
+  - Modal dialog with tabbed interface
+  - Handles unsaved changes warnings (Escape/Cancel/Alt+F4)
 
-#### 1.3 Model Menu
+#### 1.3 View Menu ✅ NEW (Phase 3)
+- **Comparison Mode (C)** ✅ IMPLEMENTED
+  - Toggles between single enhancement and comparison modes
+  - Checkable menu item (shows active state)
+  - Keyboard shortcut: `C`
+  - Shows method selection dialog when entering comparison mode
+
+#### 1.4 Model Menu
 - **Load Model Weights...**
   - Opens file dialog to select `.weights.h5` weights file
   - Default location: `./weights/` directory
   - Validates model compatibility before loading
 
-- **Default Weights**
-  - Submenu listing available weights in `./weights/` directory
+- **Default Weights** ✅ IMPLEMENTED
+  - Submenu listing available weights in configured directory
   - Quick selection of pre-trained models
   - Shows training epoch in name (e.g., "Epoch 200")
+  - Checkmark on currently loaded model
+  - Directory configurable in Preferences
+  - Refreshes when directory changes in Preferences
 
-- **Model Info**
+- **Model Info** ✅ IMPLEMENTED
   - Shows current loaded model details:
     - File path
-    - File size
-    - Training epoch (if available)
-    - Load timestamp
+    - File size (formatted in MB)
+    - Simple message box display
 
-#### 1.4 Help Menu
+#### 1.5 Help Menu
 - **About Zero-DCE**
   - Shows information about the Zero-DCE algorithm
   - Links to original paper (CVPR 2020)
@@ -119,9 +133,70 @@ A cross-platform desktop application that provides an intuitive graphical user i
 
 ---
 
-### 2. Image Display Panels
+### 2. Display Modes
 
-#### 2.1 Left Panel: Input Image
+#### 2.1 Single Enhancement Mode (Default)
+
+Standard two-panel layout for single image enhancement.
+
+### 2.2 Comparison Mode ✅ NEW (Phase 3)
+
+Side-by-side comparison of multiple enhancement methods.
+
+**Features:**
+- **Comparison Grid Widget:**
+  - Displays multiple enhancement results simultaneously
+  - Intelligent grid layout based on cell count:
+    - 2 cells: 1×2 grid (50% width each)
+    - 3 cells: 1×3 grid (33.3% width each)
+    - 4 cells: 2×2 grid (50% width × 50% height)
+    - 5-6 cells: 2×3 grid (33.3% width × 50% height)
+    - 7+ cells: 4 columns (25% width, multiple rows)
+  - Uniform cell dimensions (all cells equal size)
+  - Scrollable for many methods
+  
+- **Comparison Cells:**
+  - Method name label at top
+  - Enhanced image (scaled to fit, maintains aspect ratio)
+  - Status indicator with color-coded borders:
+    - Gray (pending), Blue (running), Green (done), Red (error)
+  - Timing information (e.g., "2.34s")
+  - Click to expand (future feature)
+  
+- **Input & Reference Cells:**
+  - Always shows original input image
+  - Optional reference (high-light) image cell
+  - Same uniform dimensions as method cells
+  
+- **Method Selection Dialog:**
+  - Checkboxes for all available methods (grouped by category)
+  - Deep Learning: Zero-DCE (disabled without model)
+  - Classical: AutoContrast, Histogram Eq, CLAHE, Gamma
+  - Quick selection buttons: All, None, Classical Only, Fast Methods
+  - Optional reference image picker (browse/clear)
+  - Validation: at least one method required
+  
+- **Background Processing:**
+  - Methods run sequentially in background thread
+  - Progressive UI updates (results appear as completed)
+  - Status bar shows progress
+  - Graceful error handling (one failure doesn't stop others)
+
+**Toggle:**
+- Button: "Compare Methods" in single mode
+- Menu: View → Comparison Mode
+- Keyboard: `C`
+
+**Workflow:**
+1. Load input image
+2. Click "Compare Methods" or press `C`
+3. Select methods and optional reference in dialog
+4. View results in grid as they complete
+5. Toggle back to single mode with `C`
+
+### 3. Image Display Panels (Single Mode)
+
+#### 3.1 Left Panel: Input Image
 
 **States:**
 
@@ -152,7 +227,7 @@ A cross-platform desktop application that provides an intuitive graphical user i
   - Dimensions (WxH)
   - File size
 
-#### 2.2 Right Panel: Enhanced Image
+#### 3.2 Right Panel: Enhanced Image
 
 **States:**
 
@@ -178,7 +253,8 @@ A cross-platform desktop application that provides an intuitive graphical user i
 - **Click (when enhanced image available):** Opens save dialog
 - **Right-click Menu:**
   - Save Image
-  - Compare with Original (toggle split view, see Section 2.3)
+  - Compare Methods… (launch comparison mode and method selection)
+  - Quick Split View (toggle per-panel slider, see Section 2.3)
 
 **Visual Indicators:**
 - Label: "Enhanced Image" (top of panel)
@@ -190,23 +266,43 @@ A cross-platform desktop application that provides an intuitive graphical user i
 
 #### 2.3 Image Comparison Features
 
-**Side-by-Side View (Default)**
-- Input on left, output on right
-- Independent zoom/pan (optional)
+Comparison now supports both single-result inspection and multi-method analysis. Users can switch between modes as needed; all comparison views share the same zoom and navigation controls.
 
-**Split View (Toggle)**
-- Single panel with vertical slider
-- Drag slider to reveal input/output
-- Useful for before/after comparison
-- Keyboard shortcut: `C` (Compare)
+**Multi-Method Grid (Phase 3 focus)**
+- Triggered when comparison mode is enabled and multiple enhancement methods are selected.
+- Grid layout adapts to available width (2 columns minimum, 3-4 columns on wide screens).
+- Each cell shows:
+  - Enhanced image rendered via `ImagePanel` derivative. The grid always includes the original low-light input cell; if the user supplies a high-light reference, it appears alongside enhancement results.
+  - Method name, execution time, and status badges (pending, running, completed, failed).
+  - Inline before/after slider anchored to the original image. Slider defaults to 50/50 split, is draggable horizontally, and reveals the original image on the left side of the bar and the enhanced result on the right.
+  - Action icons (expand, save, context menu).
+- Cells display live progress indicators until their enhancement completes.
+- Double-click or press `Enter` on a focused cell to expand it in a dedicated viewer while preserving the grid state.
 
-**Zoom Controls**
-- Zoom in/out buttons (+ / -)
-- Fit to window (default)
-- Actual size (100%)
-- Synchronized zoom for both panels (optional)
-- Mouse wheel zoom
-- Keyboard: `Ctrl +` / `Ctrl -` / `Ctrl 0`
+**Per-Cell Before/After Slider**
+- Slider handle appears on hover/focus; keyboard users can adjust with `Left/Right` arrows.
+- Press `Space` to toggle between 0%, 50%, and 100% reveal states quickly.
+- Enhancement cells use cached original image data to ensure consistent comparisons across methods, while the reference cell defaults to a static display (toggle shows reference vs original when available).
+- Works in both grid view and expanded cell view.
+
+**Side-by-Side View (Single-Result Mode)**
+- Remains available when only one enhancement result is present.
+- Input on left, output on right with independent zoom/pan.
+- Acts as fallback for users who prefer traditional two-panel comparison.
+
+**Split View (Expanded View Option)**
+- Vertical slider overlay inside a single panel.
+- Accessible from the expanded cell view or via the legacy “Compare with Original” action.
+- Useful for detailed inspection of a single method; co-exists with multi-cell comparison.
+- Keyboard shortcut: `Shift+C` (toggle when expanded) while `C` toggles global comparison grid mode.
+
+**Zoom Controls (Shared Across Modes)**
+- Zoom in/out buttons (+ / -).
+- Fit to window (default).
+- Actual size (100%).
+- Optional synchronized zoom for selected cells.
+- Mouse wheel zoom with modifier (`Ctrl` + scroll).
+- Keyboard: `Ctrl +`, `Ctrl -`, `Ctrl 0`.
 
 ---
 
@@ -278,69 +374,71 @@ A cross-platform desktop application that provides an intuitive graphical user i
 
 ---
 
-### 4. Preferences Dialog
+### 4. Preferences Dialog ✅ IMPLEMENTED
 
 **Access:** Edit → Preferences (Ctrl+,)
 
+**Dialog Features:**
+- Modal window (600x450 minimum)
+- Tabbed interface for organizing settings
+- OK/Cancel/Apply buttons with proper behavior
+- Dirty state tracking with unsaved changes warnings
+- Escape key, Cancel button, and Alt+F4 all trigger warnings if unsaved
+- Settings immediately refresh main window UI
+
 **Categories (Tabbed Interface):**
 
-#### 4.1 General Tab
-- **Default Model Weights:**
-  - Path to default `.weights.h5` file
-  - Browse button to select file
-  - Auto-load on startup (checkbox)
+#### 4.1 General Tab ✅ IMPLEMENTED
 
-- **Image Display:**
-  - Default zoom level: [Fit to Window | Actual Size]
-  - Keep zoom synchronized between panels (checkbox)
-  - Show image info overlay (checkbox)
+**Model Settings:**
+- **Weights Directory:** ⚠️ DESIGN CHANGE
+  - Directory path (not specific file) for simpler UX
+  - Browse button to select directory
+  - Auto-load model on startup (checkbox)
+  - **Rationale:** Users set directory once, pick specific models from menu
 
-- **Performance:**
-  - GPU Acceleration: [Auto | Enable | Disable]
-  - Max image dimension (for large files): [2048 | 4096 | Unlimited]
+**Display Settings:**
+- **Default zoom level:** [Fit to Window | Actual Size (100%)]
+- **Keep zoom synchronized between panels** (checkbox)
+- **Show image info overlay** (checkbox)
 
-#### 4.2 Advanced Tab
-- **Model Settings:**
-  - Number of enhancement iterations (default: 8)
-  - Output image format: [PNG | JPEG]
-  - JPEG quality: Slider (0-100, default 95)
+**Performance Settings:**
+- **GPU Acceleration:** [Auto (Recommended) | Enable | Disable (CPU Only)]
+  - Live GPU status indicator showing detected GPUs
+- **Max image dimension:** [2048 | 4096 (Recommended) | 8192 | Unlimited]
+  - Warning shown if Unlimited selected
 
-- **Temporary Files:**
-  - Cache directory location
-  - Clear cache button
-  - Auto-clear on exit (checkbox)
+#### 4.2 Advanced Tab (Phase 3)
+**Status:** Deferred to Phase 3
 
-- **Logging:**
-  - Enable debug logging (checkbox)
-  - Log file location
-  - Open log folder button
+Planned features:
+- Model enhancement iterations
+- Output format settings
+- Cache management
+- Debug logging
 
 ---
 
-### 5. Status Bar
+### 5. Status Bar ✅ IMPLEMENTED
 
 **Location:** Bottom of window
 
 **Components:**
 
-**A. Left Section:**
-- Status message:
+**A. Left Section:** ✅ IMPLEMENTED
+- Status messages with timing:
   - "Ready" (idle)
   - "Loading model..." (during model load)
   - "Enhancing image..." (during processing)
-  - "Enhanced successfully" (after completion)
-  - "Error: <message>" (on error)
+  - "Enhanced successfully in 2.34s" (after completion with timing)
+  - "Preferences saved and applied" (after settings change)
+  - Error messages when operations fail
 
-**B. Center Section:**
+**B. Right Section (Permanent):** ✅ IMPLEMENTED
 - Current model info:
-  - Format: "Model: <filename>"
-  - Tooltip shows full path
-  - Click to change model
-
-**C. Right Section:**
-- Image dimensions: "1920x1080 px"
-- Processing time: "2.3s"
-- Memory usage (optional): "Memory: 512 MB"
+  - Format: "Model: <filename>" (when loaded)
+  - Format: "No model loaded" (when not loaded)
+  - Updates immediately when model loaded or settings changed
 
 ---
 
@@ -480,12 +578,13 @@ def enhance_image(input_image: PIL.Image) -> PIL.Image:
 **Expected Time:** 30 seconds (first-time user)
 
 #### 9.2 Comparison Workflow
-1. Load and enhance image (steps 1-7 above)
-2. Press `C` or right-click → Compare
-3. UI switches to split-view mode
-4. Drag slider to compare before/after
-5. Zoom in on specific areas
-6. Toggle back to side-by-side with `C`
+1. Load an input image (steps 1-4 above) and ensure a model is available.
+2. Press `C`, use View → Comparison Mode, or click the toolbar toggle to open comparison mode.
+3. Method selection dialog appears (unless a previous selection is cached); choose one or more enhancement methods and optionally pick a high-light reference image (import dialog offers “Use paired reference” or “Browse…” when available).
+4. UI switches to multi-method grid. The original low-light input appears in the first cell, followed by the optional reference cell, then each selected method rendered into its own cell with progress indicator and inline before/after slider.
+5. Drag the slider in any cell to reveal the original image on the left of the handle and the enhanced output on the right. Keyboard users can adjust the slider with arrow keys.
+6. Double-click a cell (or use the expand icon) to open the enhanced result in an expanded view. In this view, press `Shift+C` (or use the on-screen toggle) to switch the per-cell slider into full split-view mode for precise inspection.
+7. Use grid controls to zoom, pan, and navigate between cells. Press `C` again to exit comparison mode and return to single-result view.
 
 ---
 
@@ -497,12 +596,12 @@ def enhance_image(input_image: PIL.Image) -> PIL.Image:
 - `Ctrl+O`: Open image
 - `Ctrl+S`: Save enhanced image
 - `Ctrl+E`: Enhance (trigger button)
+- `C`: Toggle comparison mode ✅ NEW (Phase 3)
 - `Ctrl+Q`: Quit application
 - `Ctrl+,`: Preferences
 - `Ctrl+W`: Close window
 - `Ctrl+Z`: Undo (future feature)
 - `F1`: Help
-- `C`: Toggle compare mode
 - `Space`: Enhance (when button focused)
 
 **Navigation:**
@@ -558,7 +657,7 @@ def enhance_image(input_image: PIL.Image) -> PIL.Image:
 
 ### 17. Potential Features (Future)
 
-- [ ] **Comparison with Other Methods:** CLAHE, Histogram Eq, etc.
+- [x] **Comparison with Other Methods:** Implemented via multi-method comparison grid (Phase 3).
 
 ---
 
@@ -581,11 +680,15 @@ def enhance_image(input_image: PIL.Image) -> PIL.Image:
 - Better error messages
 - **Estimated Time:** 1-2 weeks
 
-#### Phase 3: Advanced Features
-- Split-view comparison
-- Zoom/pan controls
-- Recent files
-- Model management
+#### Phase 3: Advanced Features ✅ IN PROGRESS
+- ✅ Multi-method comparison grid (Task 3.2 complete)
+- ✅ Method selection dialog with quick presets
+- ✅ Optional reference image support
+- ✅ Comparison mode toggle (keyboard shortcut `C`)
+- ✅ Uniform cell dimensions with intelligent grid layout
+- ✅ Progressive result updates with status indicators
+- ⏳ Export comparison results (Task 3.5)
+- ⏳ Method preferences (Task 3.4)
 - **Estimated Time:** 2-3 weeks
 
 #### Phase 4: Testing & Release
@@ -623,21 +726,25 @@ repo/
 │   │   ├── __init__.py
 │   │   ├── image_panel.py      # Image display widget
 │   │   ├── enhance_button.py   # Custom button widget
-│   │   └── loading_overlay.py  # Loading spinner
+│   │   ├── comparison_cell.py  # Comparison cell widget ✅ NEW
+│   │   └── comparison_grid.py  # Comparison grid widget ✅ NEW
 │   ├── dialogs/
 │   │   ├── __init__.py
-│   │   ├── preferences.py      # Preferences dialog
-│   │   ├── about.py            # About dialog
-│   │   └── error_dialog.py     # Error display
+│   │   ├── preferences_dialog.py      # Preferences dialog
+│   │   ├── error_dialog.py            # Error display
+│   │   └── method_selection_dialog.py # Method selection ✅ NEW
 │   ├── resources/
 │   │   ├── icons/              # Application icons
 │   │   ├── images/             # Placeholder graphics
 │   │   └── styles.qss          # Qt stylesheets
 │   └── utils/
 │       ├── __init__.py
-│       ├── image_processor.py  # Image I/O and processing
-│       ├── model_loader.py     # Model management
-│       └── settings.py         # Application settings
+│       ├── image_processor.py     # Image I/O and processing
+│       ├── model_loader.py        # Model management
+│       ├── settings.py            # Application settings
+│       ├── enhancement_result.py  # Result container
+│       ├── enhancement_methods.py # Method registry ✅ NEW
+│       └── enhancement_runner.py  # Multi-method runner ✅ NEW
 ├── gui_app.py                   # Main entry point
 └── docs/
     ├── GUI_SPECIFICATION.md     # This file
@@ -735,19 +842,69 @@ repo/
 
 ### C. Changelog
 - **v1.0.0-draft (2025-10-28):** Initial specification document
+- **v2.0.0 (2025-10-30):** Phase 2 implementation complete
+  - Added implementation status markers (✅)
+  - Documented design changes (directory-only model selection)
+  - Added Phase 2 completion summary
+  - Updated status from "Planning" to "Phase 2 Complete"
+- **v2.1.0 (2025-10-31):** Phase 3 Task 3.2 complete
+  - Added comparison mode feature documentation
+  - Added View menu with Comparison Mode toggle
+  - Documented comparison grid, cells, and method selection dialog
+  - Updated keyboard shortcuts (added `C` for comparison toggle)
+  - Updated file structure with new Phase 3 modules
+
+---
+
+## Phase 2 Implementation Summary
+
+### Completed Features (Phase 2)
+1. ✅ **Recent Files Submenu** - 14 tests passing
+2. ✅ **Enhanced Model Menu** - Default Weights submenu with epoch extraction
+3. ✅ **Preferences Dialog** - Comprehensive settings management
+4. ✅ **General Tab** - All basic settings with validation
+5. ✅ **Progress Indicators** - Timing display for enhancements
+6. ✅ **Keyboard Shortcuts** - Ctrl+, for preferences
+
+### Test Coverage
+- **Total Tests:** 215+ automated tests
+- **Phase 1-2 Test Files:**
+  - `test_gui_recent_files.py` - 14 tests
+  - `test_gui_model_menu.py` - 11 tests
+  - `test_gui_model_settings.py` - 9 tests
+  - `test_gui_dialogs_preferences.py` - 42 tests
+  - `test_gui_enhancement_result.py` - 33 tests
+  - `test_gui_image_panel_timing.py` - 21 tests
+  - `test_gui_main_window_timing.py` - 15 tests
+  - Plus existing Phase 1 tests
+- **Phase 3 Test Files (NEW):**
+  - `test_gui_widgets_comparison_cell.py` - 14 tests ✅
+  - `test_gui_widgets_comparison_grid.py` - 23 tests ✅
+  - `test_gui_dialogs_method_selection.py` - 23 tests ✅
+  - `test_gui_utils_enhancement_methods.py` - Tests for method registry
+  - `test_gui_utils_enhancement_runner.py` - Tests for multi-method runner
+
+### Design Improvements Made
+1. **Simplified Model Selection:**
+   - Original: Select specific file in preferences (confusing)
+   - Implemented: Select directory only, pick model from menu (intuitive)
+2. **Consistent Close Behavior:**
+   - Escape key, Cancel button, Alt+F4 all show unsaved changes warning
+3. **Live UI Updates:**
+   - Settings changes immediately refresh main window
+   - Default Weights menu updates when directory changes
+
+### Known Limitations (Phase 2)
+- Advanced tab deferred to Phase 3/4
+- Status bar doesn't show image dimensions yet (Phase 3/4)
+- ~~Compare mode keyboard shortcut deferred to Phase 3~~ ✅ IMPLEMENTED
 
 ---
 
 ## Sign-off
 
-This specification document serves as the blueprint for developing the Zero-DCE GUI application. It will be iteratively refined based on:
-- Student feedback and requirements
-- Technical feasibility during implementation
-- User testing and feedback
+This specification has been validated through Phase 2 and partial Phase 3 implementation. All core features are working and tested.
 
-**Next Steps:**
-1. Review and revise this specification
-2. Create detailed mockups/wireframes
-3. Set up PyQt6 development environment
-4. Begin Phase 1 implementation
-5. Iterate and refine based on progress
+**Current Status:** Phase 3 In Progress (Task 3.2 Complete) ✅  
+**Completed:** Comparison view widget with method selection  
+**Next Tasks:** Task 3.3 (Further integration), Task 3.4 (Preferences), Task 3.5 (Export)
