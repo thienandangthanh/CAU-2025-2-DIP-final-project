@@ -687,6 +687,8 @@ def enhance_image(input_image: PIL.Image) -> PIL.Image:
 - ✅ Comparison mode toggle (keyboard shortcut `C`)
 - ✅ Uniform cell dimensions with intelligent grid layout
 - ✅ Progressive result updates with status indicators
+- ✅ Comparison workflow integrated into main window (Task 3.3 core)
+- ⏳ Comparison mode cleanup (state reset + progress counters)
 - ⏳ Export comparison results (Task 3.5)
 - ⏳ Method preferences (Task 3.4)
 - **Estimated Time:** 2-3 weeks

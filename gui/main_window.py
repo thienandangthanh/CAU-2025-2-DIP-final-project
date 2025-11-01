@@ -124,6 +124,7 @@ class MainWindow(QMainWindow):
         self.selected_methods: List[str] = []  # Methods selected for comparison
         self.reference_image_path: Optional[str] = None  # Reference image path
         self.comparison_runner: Optional[EnhancementRunnerThread] = None
+        self._comparison_progress_count: int = 0  # Track completed methods during comparison
 
         # Initialize UI
         self._init_ui()
@@ -538,6 +539,13 @@ class MainWindow(QMainWindow):
             self.output_panel.clear()
             self.current_enhanced_image = None
 
+            # Clear comparison state when loading new image
+            self._clear_comparison_state()
+
+            # If in comparison mode with selected methods, restart comparison automatically
+            if self.comparison_mode and self.selected_methods:
+                self._run_comparison()
+
             # Add to recent files
             self.settings.add_recent_file(filepath)
 
@@ -921,6 +929,26 @@ class MainWindow(QMainWindow):
 
     # ==================== Comparison Mode ====================
 
+    def _clear_comparison_state(self):
+        """Clear comparison mode state and results.
+        
+        This should be called when loading a new image to ensure
+        comparison results from the previous image don't persist.
+        """
+        # Clear enhancement results
+        self._enhancement_results.clear()
+        
+        # Reset comparison progress counter
+        self._comparison_progress_count = 0
+        
+        # Clear comparison grid (clear results only, keep structure)
+        if self.comparison_mode:
+            self.comparison_grid.clear_results()
+        
+        # Note: We intentionally do NOT clear selected_methods and reference_image_path
+        # because users may want to use the same method selection and reference
+        # for the next image. Only clear the actual results.
+
     def _toggle_comparison_mode(self):
         """Toggle between single enhancement and comparison mode."""
         if self.comparison_mode:
@@ -1048,6 +1076,9 @@ class MainWindow(QMainWindow):
 
     def _run_comparison_thread(self):
         """Run comparison in background thread."""
+        # Reset progress counter at start of new comparison
+        self._comparison_progress_count = 0
+        
         # Create comparison runner thread
         self.comparison_runner = EnhancementRunnerThread(
             image=self.current_input_image,
@@ -1065,10 +1096,9 @@ class MainWindow(QMainWindow):
         self.comparison_runner.method_failed.connect(self._on_comparison_method_failed)
         self.comparison_runner.all_completed.connect(self._on_comparison_all_completed)
 
-        # Update UI
-        self.statusBar().showMessage(
-            f"Comparing {len(self.selected_methods)} methods..."
-        )
+        # Update UI with initial progress
+        total = len(self.selected_methods)
+        self.statusBar().showMessage(f"Comparing {total} methods... (0/{total})")
 
         # Start thread
         self.comparison_runner.start()
@@ -1083,7 +1113,10 @@ class MainWindow(QMainWindow):
 
         registry = get_registry()
         method_name = registry.get_method_info(method_key).name
-        self.statusBar().showMessage(f"Running {method_name}...")
+        total = len(self.selected_methods)
+        self.statusBar().showMessage(
+            f"Running {method_name}... ({self._comparison_progress_count}/{total})"
+        )
 
     def _on_comparison_method_completed(
         self, method_key: str, result: EnhancementResult
@@ -1094,6 +1127,9 @@ class MainWindow(QMainWindow):
             method_key: Method that completed
             result: Enhancement result
         """
+        # Increment progress counter
+        self._comparison_progress_count += 1
+        
         # Convert PIL image to QPixmap
         pixmap = ImageProcessor.pil_to_pixmap(result.image)
 
@@ -1105,6 +1141,14 @@ class MainWindow(QMainWindow):
 
         # Store result
         self._enhancement_results[method_key] = result
+        
+        # Update status bar with progress
+        total = len(self.selected_methods)
+        registry = get_registry()
+        method_name = registry.get_method_info(method_key).name
+        self.statusBar().showMessage(
+            f"Completed {method_name} ({self._comparison_progress_count}/{total})"
+        )
 
     def _on_comparison_method_failed(self, method_key: str, error_message: str):
         """Handle comparison method failed signal.
@@ -1113,7 +1157,19 @@ class MainWindow(QMainWindow):
             method_key: Method that failed
             error_message: Error message
         """
+        # Increment progress counter (even for failed methods)
+        self._comparison_progress_count += 1
+        
+        # Update grid with error
         self.comparison_grid.set_method_error(method_key, error_message)
+        
+        # Update status bar with progress
+        total = len(self.selected_methods)
+        registry = get_registry()
+        method_name = registry.get_method_info(method_key).name
+        self.statusBar().showMessage(
+            f"Failed {method_name} ({self._comparison_progress_count}/{total})"
+        )
 
     def _on_comparison_all_completed(self):
         """Handle all comparison methods completed signal."""
