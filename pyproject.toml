@@ -13,5 +13,6 @@ dependencies = [
     "pyqt6>=6.10.0",
     "pytest>=8.4.2",
     "pytest-qt>=4.4.0",
+    "retinex>=0.0.1",
     "tensorflow[and-cuda]>=2.20.0",
 ]
