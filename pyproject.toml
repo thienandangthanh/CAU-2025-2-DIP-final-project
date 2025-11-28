@@ -16,3 +16,10 @@ dependencies = [
     "retinex>=0.0.1",
     "tensorflow[and-cuda]>=2.20.0",
 ]
+
+[dependency-groups]
+dev = [
+    "black>=25.11.0",
+    "pre-commit>=4.5.0",
+    "ruff>=0.14.6",
+]
