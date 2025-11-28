@@ -112,6 +112,24 @@ class GeneralTab(QWidget):
             "Display image dimensions and other information on the image panels"
         )
         display_layout.addRow("", self.show_info_checkbox)
+
+        # Histogram overlay
+        self.show_histogram_checkbox = QCheckBox("Show histogram overlay")
+        self.show_histogram_checkbox.setToolTip(
+            "Overlay a histogram on top of each image panel. Can also be toggled via View menu."
+        )
+        self.show_histogram_checkbox.stateChanged.connect(
+            self._update_histogram_controls
+        )
+        display_layout.addRow("", self.show_histogram_checkbox)
+
+        self.histogram_type_combo = QComboBox()
+        self.histogram_type_combo.addItem("Grayscale (Recommended)", "grayscale")
+        self.histogram_type_combo.addItem("RGB Channels", "rgb")
+        self.histogram_type_combo.setToolTip(
+            "Select which histogram representation to show by default."
+        )
+        display_layout.addRow("Histogram Type:", self.histogram_type_combo)
         
         display_group.setLayout(display_layout)
         layout.addWidget(display_group)
@@ -232,6 +250,14 @@ class GeneralTab(QWidget):
         
         self.sync_zoom_checkbox.setChecked(self.settings.get_sync_zoom())
         self.show_info_checkbox.setChecked(self.settings.get_show_info_overlay())
+        self.show_histogram_checkbox.setChecked(
+            self.settings.get_histogram_overlay_visible()
+        )
+        hist_type = self.settings.get_histogram_type()
+        index = self.histogram_type_combo.findData(hist_type)
+        if index >= 0:
+            self.histogram_type_combo.setCurrentIndex(index)
+        self._update_histogram_controls()
         
         # Performance settings
         gpu_mode = self.settings.get_gpu_mode()
@@ -248,6 +274,11 @@ class GeneralTab(QWidget):
             index = self.max_dimension_combo.findData(4096)
             if index >= 0:
                 self.max_dimension_combo.setCurrentIndex(index)
+    
+    def _update_histogram_controls(self):
+        """Enable or disable histogram type combo based on checkbox."""
+        enabled = self.show_histogram_checkbox.isChecked()
+        self.histogram_type_combo.setEnabled(enabled)
     
     def save_settings(self) -> bool:
         """Save settings from UI controls.
@@ -288,6 +319,10 @@ class GeneralTab(QWidget):
         self.settings.set_default_zoom_mode(zoom_mode)
         self.settings.set_sync_zoom(self.sync_zoom_checkbox.isChecked())
         self.settings.set_show_info_overlay(self.show_info_checkbox.isChecked())
+        self.settings.set_histogram_overlay_visible(
+            self.show_histogram_checkbox.isChecked()
+        )
+        self.settings.set_histogram_type(self.histogram_type_combo.currentData())
         
         # Performance settings
         gpu_mode = self.gpu_mode_combo.currentData()
@@ -310,6 +345,8 @@ class GeneralTab(QWidget):
             'zoom_mode': self.zoom_mode_combo.currentData(),
             'sync_zoom': self.sync_zoom_checkbox.isChecked(),
             'show_info': self.show_info_checkbox.isChecked(),
+            'show_histogram': self.show_histogram_checkbox.isChecked(),
+            'histogram_type': self.histogram_type_combo.currentData(),
             'gpu_mode': self.gpu_mode_combo.currentData(),
             'max_dimension': self.max_dimension_combo.currentData(),
         }
@@ -418,6 +455,8 @@ class PreferencesDialog(QDialog):
         self.general_tab.zoom_mode_combo.currentIndexChanged.connect(self._on_settings_changed)
         self.general_tab.sync_zoom_checkbox.stateChanged.connect(self._on_settings_changed)
         self.general_tab.show_info_checkbox.stateChanged.connect(self._on_settings_changed)
+        self.general_tab.show_histogram_checkbox.stateChanged.connect(self._on_settings_changed)
+        self.general_tab.histogram_type_combo.currentIndexChanged.connect(self._on_settings_changed)
         self.general_tab.gpu_mode_combo.currentIndexChanged.connect(self._on_settings_changed)
         self.general_tab.max_dimension_combo.currentIndexChanged.connect(self._on_settings_changed)
     

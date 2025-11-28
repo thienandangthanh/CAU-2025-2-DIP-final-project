@@ -56,6 +56,8 @@ class ComparisonGrid(QWidget):
         self.input_cell: Optional[ComparisonCell] = None
         self.reference_cell: Optional[ComparisonCell] = None
         self.has_reference = False
+        self.histogram_visible = False
+        self.histogram_type = "grayscale"
         
         # Set size policy
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -139,6 +141,7 @@ class ComparisonGrid(QWidget):
             )
             self.input_cell.clicked.connect(self.cell_clicked.emit)
             self.cells["input"] = self.input_cell
+            self._apply_histogram_settings_to_cell(self.input_cell)
         
         # Create reference cell if requested
         if show_reference:
@@ -149,6 +152,7 @@ class ComparisonGrid(QWidget):
             )
             self.reference_cell.clicked.connect(self.cell_clicked.emit)
             self.cells["reference"] = self.reference_cell
+            self._apply_histogram_settings_to_cell(self.reference_cell)
         
         # Create cells for each method
         for method_key in method_keys:
@@ -160,6 +164,7 @@ class ComparisonGrid(QWidget):
             )
             cell.clicked.connect(self.cell_clicked.emit)
             self.cells[method_key] = cell
+            self._apply_histogram_settings_to_cell(cell)
         
         # Calculate optimal column count based on total cells
         total_cells = len(self.cells)
@@ -347,6 +352,24 @@ class ComparisonGrid(QWidget):
             Dictionary mapping method_key to ComparisonCell
         """
         return self.cells.copy()
+
+    def set_histogram_settings(self, visible: bool, histogram_type: str):
+        """Apply histogram configuration to all cells."""
+        if histogram_type not in {"rgb", "grayscale"}:
+            raise ValueError("Histogram type must be 'rgb' or 'grayscale'")
+
+        self.histogram_visible = visible
+        self.histogram_type = histogram_type
+
+        for cell in self.cells.values():
+            self._apply_histogram_settings_to_cell(cell)
+
+    def _apply_histogram_settings_to_cell(self, cell: ComparisonCell):
+        """Configure histogram overlay for a specific cell."""
+        if cell is None:
+            return
+        cell.set_histogram_type(self.histogram_type)
+        cell.set_histogram_enabled(self.histogram_visible)
     
     def update_header(self, method_count: int, has_reference: bool = False):
         """Update the header label with current comparison info.

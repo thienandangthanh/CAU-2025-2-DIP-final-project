@@ -204,6 +204,19 @@ class TestComparisonCell:
         cell.set_status("done")  # This triggers the status update
         assert "Original" in cell.status_label.text()
 
+    def test_histogram_configuration(self, qapp, test_image):
+        """Test histogram overlay can be toggled on a cell."""
+        _, pixmap = test_image
+        cell = ComparisonCell("test-method", "Test Method")
+        cell.set_image(pixmap)
+        cell.set_histogram_type("grayscale")
+        cell.set_histogram_enabled(True)
+        assert cell.histogram_visible is True
+        cell.set_histogram_type("rgb")
+        assert cell.histogram_visible is True
+        cell.set_histogram_enabled(False)
+        assert cell.histogram_visible is False
+
 
 @pytest.mark.gui
 class TestComparisonCellIntegration:

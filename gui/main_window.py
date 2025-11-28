@@ -29,7 +29,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QAction, QKeySequence
+from PyQt6.QtGui import QAction, QKeySequence, QActionGroup
 
 from gui.widgets import ImagePanel, EnhanceButton, ComparisonGrid
 from gui.dialogs import ErrorDialog, PreferencesDialog, MethodSelectionDialog
@@ -104,6 +104,8 @@ class MainWindow(QMainWindow):
         # Initialize utilities
         self.model_loader = ModelLoader()
         self.settings = AppSettings()
+        self.histogram_visible = self.settings.get_histogram_overlay_visible()
+        self.histogram_type = self.settings.get_histogram_type()
 
         # Current state
         self.current_input_image = None  # PIL Image
@@ -231,6 +233,8 @@ class MainWindow(QMainWindow):
         self.comparison_grid.hide()  # Hidden by default
         main_layout.addWidget(self.comparison_grid)
 
+        self._apply_histogram_settings_to_panels()
+
         # Create status bar
         self._create_status_bar()
 
@@ -308,6 +312,33 @@ class MainWindow(QMainWindow):
         )
         self.toggle_comparison_action.triggered.connect(self._toggle_comparison_mode)
         view_menu.addAction(self.toggle_comparison_action)
+
+        # Histogram overlay toggle
+        self.histogram_toggle_action = QAction("Show &Histogram Overlay", self)
+        self.histogram_toggle_action.setShortcut(QKeySequence("H"))
+        self.histogram_toggle_action.setCheckable(True)
+        self.histogram_toggle_action.setChecked(self.histogram_visible)
+        self.histogram_toggle_action.setStatusTip(
+            "Toggle histogram overlay for all image panels"
+        )
+        self.histogram_toggle_action.triggered.connect(self._on_histogram_toggle)
+        view_menu.addAction(self.histogram_toggle_action)
+
+        # Histogram type submenu
+        histogram_type_menu = view_menu.addMenu("Histogram &Type")
+        self.histogram_type_group = QActionGroup(self)
+        self.histogram_type_group.setExclusive(True)
+        self.histogram_type_actions = {}
+
+        grayscale_action = QAction("Grayscale", self, checkable=True)
+        rgb_action = QAction("RGB", self, checkable=True)
+        for action, key in [(grayscale_action, "grayscale"), (rgb_action, "rgb")]:
+            action.setData(key)
+            action.triggered.connect(self._on_histogram_type_selected)
+            self.histogram_type_group.addAction(action)
+            histogram_type_menu.addAction(action)
+            self.histogram_type_actions[key] = action
+        self._sync_histogram_actions()
 
         # ==================== Model Menu ====================
         model_menu = menubar.addMenu("&Model")
@@ -628,10 +659,14 @@ class MainWindow(QMainWindow):
         """Handle settings changed signal from preferences dialog."""
         # Reload settings to get the latest values
         self.settings = AppSettings()
+        self.histogram_visible = self.settings.get_histogram_overlay_visible()
+        self.histogram_type = self.settings.get_histogram_type()
 
         # Update UI elements that depend on settings
         self._update_model_status_display()
         self._update_default_weights_menu()
+        self._sync_histogram_actions()
+        self._apply_histogram_settings_to_panels()
 
         # Show confirmation
         self.statusBar().showMessage("Preferences saved and applied", 2000)
@@ -924,8 +959,70 @@ class MainWindow(QMainWindow):
         # C to toggle comparison mode
         elif event.key() == Qt.Key.Key_C:
             self._toggle_comparison_mode()
+        # H toggles histogram, Shift+H cycles histogram type
+        elif event.key() == Qt.Key.Key_H:
+            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                self._cycle_histogram_type()
+            else:
+                self.histogram_toggle_action.toggle()
         else:
             super().keyPressEvent(event)
+
+    # ==================== Histogram Overlay Controls ====================
+
+    def _apply_histogram_settings_to_panels(self):
+        """Apply histogram settings to all relevant widgets."""
+        if hasattr(self, "input_panel"):
+            self.input_panel.set_histogram_type(self.histogram_type)
+            self.input_panel.set_histogram_enabled(self.histogram_visible)
+        if hasattr(self, "output_panel"):
+            self.output_panel.set_histogram_type(self.histogram_type)
+            self.output_panel.set_histogram_enabled(self.histogram_visible)
+        if hasattr(self, "comparison_grid"):
+            self.comparison_grid.set_histogram_settings(
+                self.histogram_visible, self.histogram_type
+            )
+
+    def _on_histogram_toggle(self, checked: bool):
+        """Handle histogram overlay toggle."""
+        self.histogram_visible = checked
+        self.settings.set_histogram_overlay_visible(checked)
+        self.settings.sync()
+        self._sync_histogram_actions()
+        self._apply_histogram_settings_to_panels()
+
+    def _on_histogram_type_selected(self):
+        """Handle histogram type radio selection."""
+        action = self.sender()
+        if not isinstance(action, QAction):
+            return
+        histogram_type = action.data()
+        if histogram_type not in {"rgb", "grayscale"}:
+            return
+        if histogram_type == self.histogram_type:
+            return
+        self.histogram_type = histogram_type
+        self.settings.set_histogram_type(histogram_type)
+        self.settings.sync()
+        self._sync_histogram_actions()
+        self._apply_histogram_settings_to_panels()
+
+    def _cycle_histogram_type(self):
+        """Cycle between available histogram types via keyboard shortcut."""
+        new_type = "rgb" if self.histogram_type == "grayscale" else "grayscale"
+        self.histogram_type = new_type
+        self.settings.set_histogram_type(new_type)
+        self.settings.sync()
+        self._sync_histogram_actions()
+        self._apply_histogram_settings_to_panels()
+
+    def _sync_histogram_actions(self):
+        """Ensure histogram actions reflect current state."""
+        if hasattr(self, "histogram_toggle_action"):
+            self.histogram_toggle_action.setChecked(self.histogram_visible)
+        if hasattr(self, "histogram_type_actions"):
+            for key, action in self.histogram_type_actions.items():
+                action.setChecked(key == self.histogram_type)
 
     # ==================== Comparison Mode ====================
 

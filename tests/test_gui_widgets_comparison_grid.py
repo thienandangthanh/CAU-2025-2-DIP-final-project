@@ -334,6 +334,25 @@ class TestComparisonGridIntegration:
         # Method 2 fails
         grid.set_method_error("method2", "Error occurred")
         assert grid.cells["method2"].status == "error"
+
+    def test_histogram_settings_propagate(self, qapp):
+        """Histogram settings should propagate to all cells."""
+        grid = ComparisonGrid()
+        method_keys = ["method1", "method2"]
+        method_names = {"method1": "Method 1", "method2": "Method 2"}
+        grid.set_methods(method_keys, method_names, show_input=True, show_reference=True)
+
+        grid.set_histogram_settings(True, "grayscale")
+        for cell in grid.get_all_cells().values():
+            assert cell.histogram_visible is True
+
+        grid.set_histogram_settings(True, "rgb")
+        for cell in grid.get_all_cells().values():
+            assert cell.histogram_type == "rgb"
+
+        grid.set_histogram_settings(False, "rgb")
+        for cell in grid.get_all_cells().values():
+            assert cell.histogram_visible is False
     
     def test_uniform_expanding_cells(self, qapp):
         """Test that cells expand uniformly to fill space."""

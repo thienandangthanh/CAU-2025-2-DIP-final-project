@@ -20,6 +20,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect
 from PyQt6.QtGui import QPixmap, QPainter, QColor, QDragEnterEvent, QDropEvent, QPen
 
+from .histogram_overlay import HistogramOverlay
+
 
 class ImagePanel(QWidget):
     """Widget for displaying images with multiple states.
@@ -135,6 +137,12 @@ class ImagePanel(QWidget):
         # Raise to ensure it's on top of the image
         self.info_label.raise_()
 
+        # Histogram overlay (hidden by default, global toggle controls visibility)
+        self.histogram_overlay = HistogramOverlay(self.image_label)
+        self.histogram_overlay.hide()
+        self.histogram_visible = False
+        self.histogram_type = "grayscale"
+
         # Set placeholder text
         self._show_placeholder()
 
@@ -174,6 +182,7 @@ class ImagePanel(QWidget):
             # Update display
             self._update_image_display()
             self._update_info_overlay()
+            self._refresh_histogram_overlay()
 
             # Change border style to solid when image is loaded
             self.image_label.setStyleSheet(
@@ -217,6 +226,7 @@ class ImagePanel(QWidget):
         # Show overlay if we have a path OR display_name
         if image_path or display_name:
             self._update_info_overlay()
+        self._refresh_histogram_overlay()
 
         self.image_label.setStyleSheet(
             """
@@ -309,6 +319,7 @@ class ImagePanel(QWidget):
         self.is_processing = False
         self.enhancement_time = None
         self.info_label.hide()
+        self.histogram_overlay.hide()
         self._show_placeholder()
 
         # Emit cleared signal to notify parent
@@ -366,6 +377,42 @@ class ImagePanel(QWidget):
             True if an image is loaded, False otherwise
         """
         return self.current_pixmap is not None
+
+    def set_histogram_enabled(self, enabled: bool):
+        """Enable or disable histogram overlay (globally controlled)."""
+        self.histogram_visible = enabled
+        if not enabled:
+            self.histogram_overlay.hide()
+            return
+
+        self._refresh_histogram_overlay()
+
+    def set_histogram_type(self, histogram_type: str):
+        """Update histogram type for this panel."""
+        if histogram_type not in {"rgb", "grayscale"}:
+            raise ValueError("Histogram type must be 'rgb' or 'grayscale'")
+        self.histogram_type = histogram_type
+        self.histogram_overlay.set_histogram_type(histogram_type)
+        self._refresh_histogram_overlay()
+
+    def _refresh_histogram_overlay(self):
+        """Update histogram overlay visibility and data."""
+        if not self.histogram_visible or self.current_pixmap is None:
+            self.histogram_overlay.hide()
+            return
+
+        self.histogram_overlay.set_histogram_type(self.histogram_type)
+        self.histogram_overlay.set_pixmap(self.current_pixmap)
+
+        if not self.histogram_overlay.has_custom_position():
+            self.histogram_overlay.move_to_default()
+        else:
+            self.histogram_overlay.ensure_within_parent()
+
+        self.histogram_overlay.show()
+        # Ensure overlays stack correctly: histogram below info overlay
+        self.histogram_overlay.raise_()
+        self.info_label.raise_()
 
     def set_info_overlay_visible(self, visible: bool):
         """Show or hide the info overlay.
@@ -506,3 +553,8 @@ class ImagePanel(QWidget):
             self._update_image_display()
         if self.info_label.isVisible():
             self._update_info_overlay()
+        if self.histogram_visible and self.current_pixmap is not None:
+            if not self.histogram_overlay.has_custom_position():
+                self.histogram_overlay.move_to_default()
+            else:
+                self.histogram_overlay.ensure_within_parent()
