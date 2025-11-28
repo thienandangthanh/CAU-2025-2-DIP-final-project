@@ -1,133 +1,284 @@
+"""Inference and comparison tool for Zero-DCE.
+
+This script provides functionality to enhance low-light images using Zero-DCE
+and compare the results with classical image enhancement methods. It serves
+as a visualization tool to compare different enhancement approaches side-by-side.
+"""
+
 import os
-import torch
-import cv2
-import numpy as np
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import argparse
-from PIL import Image
-from torchvision import transforms
+from pathlib import Path
+
+import keras
 import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from PIL import Image
 
-# --- Import local modules ---
-from model import DCENet, enhance
+from classical_methods import CLASSICAL_METHODS
+from model import ZeroDCE
 
-def apply_gamma_correction(image_bgr, gamma=2.2):
-    """Applies gamma correction to a BGR image."""
-    # Convert from int [0, 255] to float [0, 1]
-    image_float = image_bgr.astype(np.float32) / 255.0
-    # Apply gamma correction
-    corrected_image = np.power(image_float, 1.0/gamma)
-    # Convert back to [0, 255]
-    corrected_image_uint8 = (corrected_image * 255.0).astype(np.uint8)
-    return corrected_image_uint8
 
-def apply_histogram_equalization(image_bgr):
-    """Applies Histogram Equalization to a BGR image."""
-    # Convert to YUV color space
-    img_yuv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2YUV)
-    # Apply histogram equalization to the Y (luminance) channel
-    img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
-    # Convert back to BGR color space
-    equalized_image = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
-    return equalized_image
+def load_model_for_inference(weights_path: str) -> ZeroDCE:
+    """Load trained Zero-DCE model for inference.
 
-def apply_clahe(image_bgr, clip_limit=2.0, tile_grid_size=(8, 8)):
-    """Applies CLAHE to a BGR image."""
-    # Convert to YUV color space
-    img_yuv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2YUV)
-    # Create a CLAHE object
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
-    # Apply CLAHE to the Y (luminance) channel
-    img_yuv[:,:,0] = clahe.apply(img_yuv[:,:,0])
-    # Convert back to BGR color space
-    clahe_image = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
-    return clahe_image
+    Args:
+        weights_path: Path to saved model weights (.h5 or .weights.h5 file)
 
-def test_zerodce(image_tensor, model, device):
-    """Enhances an image using the trained Zero-DCE model."""
-    with torch.no_grad():
-        # Add a batch dimension and move to device
-        image_batch = image_tensor.unsqueeze(0).to(device)
-        
-        # Get curve parameters and enhance
-        curve_params = model(image_batch)
-        enhanced_image = enhance(image_batch, curve_params)
-        
-        # Remove batch dimension and move to CPU
-        enhanced_image = enhanced_image.squeeze(0).cpu()
-        
-        # Convert from PyTorch tensor (C, H, W) to NumPy array (H, W, C)
-        enhanced_np = enhanced_image.permute(1, 2, 0).numpy()
-        
-        # Convert from RGB [0, 1] to BGR [0, 255] for OpenCV display
-        enhanced_bgr = (enhanced_np * 255.0).clip(0, 255).astype(np.uint8)
-        enhanced_bgr = cv2.cvtColor(enhanced_bgr, cv2.COLOR_RGB2BGR)
-        
-        return enhanced_bgr
+    Returns:
+        Loaded ZeroDCE model ready for inference
+    """
+    model = ZeroDCE()
+    model.load_weights(weights_path)
+    return model
 
-def main(args):
-    # --- Setup device ---
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # --- Load Model ---
-    model = DCENet().to(device)
-    model.load_state_dict(torch.load(args.weights_path, map_location=device))
-    model.eval()
-    print(f"Model loaded from {args.weights_path}")
+def enhance_with_zero_dce(image: Image.Image, model: ZeroDCE) -> Image.Image:
+    """Enhance image using Zero-DCE model.
 
-    # --- Load and Prepare Image ---
-    # Load with OpenCV for classical methods (BGR format)
-    original_image_bgr = cv2.imread(args.image_path)
-    if original_image_bgr is None:
-        print(f"Error: Could not load image from {args.image_path}")
-        return
+    Converts PIL Image to tensor, runs inference through the model, and
+    converts the result back to PIL Image format.
 
-    # Prepare image for Zero-DCE (RGB Tensor)
-    transform = transforms.Compose([
-        transforms.Resize((args.image_size, args.image_size)),
-        transforms.ToTensor()
-    ])
-    image_pil = Image.open(args.image_path).convert('RGB')
-    image_tensor = transform(image_pil)
+    Args:
+        image: PIL Image (RGB) to enhance
+        model: Trained ZeroDCE model
 
-    # --- Apply All Enhancement Methods ---
-    gamma_result = apply_gamma_correction(original_image_bgr)
-    he_result = apply_histogram_equalization(original_image_bgr)
-    clahe_result = apply_clahe(original_image_bgr)
-    zerodce_result = test_zerodce(image_tensor, model, device)
-    
-    # Resize all images to the same size for consistent display
-    display_size = (args.image_size, args.image_size)
-    original_display = cv2.resize(original_image_bgr, display_size)
-    gamma_display = cv2.resize(gamma_result, display_size)
-    he_display = cv2.resize(he_result, display_size)
-    clahe_display = cv2.resize(clahe_result, display_size)
-    zerodce_display = cv2.resize(zerodce_result, display_size)
+    Returns:
+        Enhanced PIL Image (RGB)
+    """
+    # Convert PIL Image to numpy array
+    image_array = keras.utils.img_to_array(image)
+    image_array = image_array.astype("float32") / 255.0
 
-    # --- Display Results ---
-    titles = ['Original', 'Gamma Correction', 'Histogram Equalization', 'CLAHE', 'Zero-DCE']
-    images = [original_display, gamma_display, he_display, clahe_display, zerodce_display]
+    # Add batch dimension
+    image_array = np.expand_dims(image_array, axis=0)
 
-    plt.figure(figsize=(20, 5))
-    for i, (title, img) in enumerate(zip(titles, images)):
-        # Convert BGR (OpenCV) to RGB (Matplotlib) for display
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        plt.subplot(1, 5, i + 1)
-        plt.imshow(img_rgb)
-        plt.title(title)
-        plt.axis('off')
-    
+    # Run inference
+    output_image = model(image_array)
+
+    # Convert back to PIL Image
+    output_image = tf.cast((output_image[0, :, :, :] * 255), dtype=np.uint8)
+    output_image = Image.fromarray(output_image.numpy())
+
+    return output_image
+
+
+def compare_methods(
+    input_path: str,
+    weights_path: str,
+    output_path: str = None,
+    methods: list = None,
+    save_individual: bool = False,
+    reference_path: str = None,
+):
+    """Compare enhancement methods on a single image.
+
+    Applies multiple enhancement methods to an input image and creates a
+    side-by-side comparison visualization. Optionally saves individual
+    enhanced images. Can include a reference (well-exposed) image for
+    comparison.
+
+    Args:
+        input_path: Path to input low-light image
+        weights_path: Path to trained Zero-DCE weights
+        output_path: Path to save comparison image (if None, displays instead)
+        methods: List of methods to compare (default: all methods)
+        save_individual: Whether to save individual enhanced images (default: False)
+        reference_path: Path to reference (high-light) image (optional)
+    """
+    # Load original image
+    print(f"Loading image: {input_path}")
+    original_image = Image.open(input_path)
+
+    # Load reference image if provided
+    reference_image = None
+    if reference_path:
+        if Path(reference_path).exists():
+            print(f"Loading reference image: {reference_path}")
+            reference_image = Image.open(reference_path)
+            # Ensure reference image is RGB
+            if reference_image.mode != "RGB":
+                reference_image = reference_image.convert("RGB")
+        else:
+            print(f"⚠️  Warning: Reference image not found: {reference_path}")
+            print("   Continuing without reference image...")
+
+    # Default methods if not specified
+    if methods is None:
+        methods = [
+            "zero-dce",
+            "autocontrast",
+            "histogram-eq",
+            "clahe",
+            "gamma",
+            "msrcr",
+        ]
+
+    # Load Zero-DCE model if needed
+    model = None
+    if "zero-dce" in methods:
+        print(f"Loading Zero-DCE model from {weights_path}...")
+        model = load_model_for_inference(weights_path)
+        print("Model loaded successfully")
+
+    # Apply enhancement methods
+    # Start with original image
+    results = {"Original": original_image}
+
+    # Add reference image if provided (insert after original)
+    if reference_image is not None:
+        results["Reference (Ground Truth)"] = reference_image
+
+    print("\nApplying enhancement methods...")
+    for method_key in methods:
+        # Handle Zero-DCE separately
+        if method_key == "zero-dce":
+            print("  - Zero-DCE")
+            results["Zero-DCE"] = enhance_with_zero_dce(original_image, model)
+            # Handle classical methods from classical_methods module
+        elif method_key in CLASSICAL_METHODS:
+            method_info = CLASSICAL_METHODS[method_key]
+            method_name = method_info["name"]
+            enhance_fn = method_info["function"]
+            print(f"  - {method_name}")
+            results[method_name] = enhance_fn(original_image)
+        else:
+            print(f"  ⚠️  Warning: Unknown method '{method_key}', skipping...")
+
+    # Create comparison plot
+    num_images = len(results)
+    fig, axes = plt.subplots(1, num_images, figsize=(5 * num_images, 5))
+
+    # Handle single subplot case
+    if num_images == 1:
+        axes = [axes]
+
+    for ax, (title, img) in zip(axes, results.items(), strict=True):
+        ax.imshow(img)
+        ax.set_title(title, fontsize=14, fontweight="bold")
+        ax.axis("off")
+
     plt.tight_layout()
-    plt.savefig('comparison_result.png')
-    plt.show()
-    print("Comparison figure saved as 'comparison_result.png'")
+
+    # Save or show
+    if output_path:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"\n✅ Comparison saved to {output_path}")
+    else:
+        print("\nDisplaying comparison...")
+        plt.show()
+
+    plt.close()
+
+    # Save individual images if requested
+    if save_individual and output_path:
+        output_dir = Path(output_path).parent / "individual"
+        output_dir.mkdir(exist_ok=True)
+
+        print("\nSaving individual enhanced images...")
+        for title, img in results.items():
+            if title != "Original":
+                # Create filename from title
+                safe_title = title.lower().replace(" ", "_").replace("-", "_")
+                save_path = output_dir / f"{Path(input_path).stem}_{safe_title}.png"
+                img.save(save_path)
+                print(f"  - {save_path}")
+
+        print(f"\n✅ Individual images saved to {output_dir}/")
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Compare Zero-DCE with classical methods.")
-    
-    parser.add_argument('--image_path', type=str, required=True, help='Path to the low-light test image.')
-    parser.add_argument('--weights_path', type=str, default='weights/dce_net_epoch_200.pth', help='Path to the trained model weights.')
-    parser.add_argument('--image_size', type=int, default=512, help='Image size for processing and display.')
+def main():
+    """Main function with CLI argument parsing."""
+    parser = argparse.ArgumentParser(
+        description="Compare Zero-DCE with classical image enhancement methods",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Compare all methods
+  python compare.py -i input.jpg -w weights.h5 -o comparison.png
+
+  # Compare with reference (ground truth) image
+  python compare.py -i low/1.png -w weights.h5 -r high/1.png -o comparison.png
+
+  # Compare specific methods only
+  python compare.py -i input.jpg -w weights.h5 --methods zero-dce autocontrast
+
+  # Save individual enhanced images
+  python compare.py -i input.jpg -w weights.h5 -o output.png --save-individual
+        """,
+    )
+
+    parser.add_argument(
+        "-i", "--input", type=str, required=True, help="Path to input low-light image"
+    )
+    parser.add_argument(
+        "-w",
+        "--weights",
+        type=str,
+        required=True,
+        help="Path to trained Zero-DCE model weights (.h5 or .weights.h5 file)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        help="Path to save comparison image (if not specified, displays instead)",
+    )
+    parser.add_argument(
+        "--methods",
+        type=str,
+        nargs="+",
+        default=None,
+        choices=["zero-dce", "autocontrast", "histogram-eq", "clahe", "gamma", "msrcr"],
+        help="Enhancement methods to compare (default: all)",
+    )
+    parser.add_argument(
+        "--save-individual",
+        action="store_true",
+        help="Save individual enhanced images to 'individual/' subdirectory",
+    )
+    parser.add_argument(
+        "-r",
+        "--reference",
+        type=str,
+        default=None,
+        help="Path to reference (well-exposed) image for comparison (optional)",
+    )
 
     args = parser.parse_args()
-    main(args)
+
+    # Validate inputs
+    if not Path(args.input).exists():
+        print(f"❌ Error: Input image not found: {args.input}")
+        return 1
+
+    if not Path(args.weights).exists():
+        print(f"❌ Error: Model weights not found: {args.weights}")
+        return 1
+
+    # Run comparison
+    try:
+        compare_methods(
+            input_path=args.input,
+            weights_path=args.weights,
+            output_path=args.output,
+            methods=args.methods,
+            save_individual=args.save_individual,
+            reference_path=args.reference,
+        )
+        return 0
+    except Exception as e:
+        print(f"\n❌ Error during comparison: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == "__main__":
+    exit(main())

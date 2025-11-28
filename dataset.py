@@ -1,90 +1,147 @@
-import os
-from PIL import Image
-import torch
-from torch.utils.data import Dataset
-from torchvision import transforms
+"""Dataset loading and preprocessing for Zero-DCE model.
 
-class LowLightDataset(Dataset):
-    def __init__(self, data_dir, image_size=256):
-        """
-        Initializes the dataset.
+This module handles loading and preprocessing of the LOL Dataset for training
+the Zero-DCE low-light image enhancement model. It provides functions to load
+individual images, create TensorFlow datasets, and split data into train/val/test sets.
+"""
 
-        Args:
-            data_dir (str): The directory containing the low-light images.
-            image_size (int): The size to which images will be resized.
-        """
-        self.data_dir = data_dir
-        self.image_size = image_size
-        
-        # Get a list of all image file names in the directory
-        self.image_files = [f for f in os.listdir(data_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
-        
-        # Define the image transformations
-        self.transform = transforms.Compose([
-            # Resize the image to a square of size image_size x image_size
-            transforms.Resize((self.image_size, self.image_size)),
-            # Convert the image to a PyTorch tensor (scales pixel values to [0, 1])
-            transforms.ToTensor()
-        ])
+from glob import glob
+from pathlib import Path
 
-    def __len__(self):
-        """
-        Returns the total number of images in the dataset.
-        """
-        return len(self.image_files)
+import tensorflow as tf
 
-    def __getitem__(self, idx):
-        """
-        Retrieves an image from the dataset.
+# Configuration constants
+DEFAULT_IMAGE_SIZE = 256
+DEFAULT_BATCH_SIZE = 16
+DEFAULT_MAX_TRAIN_IMAGES = 400
 
-        Args:
-            idx (int): The index of the image to retrieve.
 
-        Returns:
-            torch.Tensor: The transformed low-light image.
-        """
-        # Construct the full path to the image file
-        img_path = os.path.join(self.data_dir, self.image_files[idx])
-        
-        # Open the image using Pillow and convert to RGB
-        image = Image.open(img_path).convert('RGB')
-        
-        # Apply the defined transformations
-        low_light_image = self.transform(image)
-        
-        return low_light_image
+def load_data(image_path: str, image_size: int = DEFAULT_IMAGE_SIZE) -> tf.Tensor:
+    """Load and preprocess a single image.
 
-# --- Simple test to verify implementation ---
-if __name__ == '__main__':
-    # Before running this, make sure you have a folder `data/train`
-    # and at least one image inside it.
-    
-    # Create a dummy folder and image for testing purposes
-    if not os.path.exists('data/train'):
-        os.makedirs('data/train')
-    try:
-        Image.new('RGB', (600, 400), color = 'red').save('data/train/dummy_image.jpg')
-        
-        # Path to your training data
-        train_dir = 'data/train'
-        
-        # Create an instance of the dataset
-        train_dataset = LowLightDataset(data_dir=train_dir)
-        
-        # Check the length of the dataset
-        print(f"Found {len(train_dataset)} images in {train_dir}")
-        
-        # Get the first item from the dataset
-        first_image = train_dataset[0]
-        
-        # Check the shape and type of the returned tensor
-        print(f"Shape of the first image tensor: {first_image.shape}")
-        print(f"Data type of the tensor: {first_image.dtype}")
-        print(f"Min value: {first_image.min()}, Max value: {first_image.max()}")
-        print("\nDataset implemented successfully!")
-        
-        # Clean up the dummy file
-        os.remove('data/train/dummy_image.jpg')
-    except Exception as e:
-        print(f"An error occurred during testing: {e}")
-        print("Please ensure you have a 'data/train' folder with at least one image.")
+    Reads an image from disk, decodes it as PNG with 3 channels, resizes to the
+    target size, and normalizes pixel values to [0, 1] range.
+
+    Args:
+        image_path: Path to the image file (PNG format expected)
+        image_size: Target size for resizing (height and width)
+
+    Returns:
+        Preprocessed image tensor of shape (image_size, image_size, 3)
+        with values normalized to [0, 1]
+    """
+    image = tf.io.read_file(image_path)
+    image = tf.image.decode_png(image, channels=3)
+    image = tf.image.resize(images=image, size=[image_size, image_size])
+    image = image / 255.0
+    return image
+
+
+def data_generator(
+    low_light_images: list[str],
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    image_size: int = DEFAULT_IMAGE_SIZE,
+) -> tf.data.Dataset:
+    """Create TensorFlow dataset from image paths.
+
+    Builds a tf.data.Dataset pipeline that loads images in parallel,
+    batches them, and optimizes for training performance.
+
+    Args:
+        low_light_images: List of image file paths
+        batch_size: Batch size for training
+        image_size: Target image size for resizing
+
+    Returns:
+        TensorFlow Dataset object configured for training with batched images
+    """
+    dataset = tf.data.Dataset.from_tensor_slices(low_light_images)
+    dataset = dataset.map(
+        lambda x: load_data(x, image_size), num_parallel_calls=tf.data.AUTOTUNE
+    )
+    dataset = dataset.batch(batch_size, drop_remainder=True)
+    return dataset
+
+
+def get_dataset(
+    dataset_path: str = "./lol_dataset",
+    max_train_images: int = DEFAULT_MAX_TRAIN_IMAGES,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    image_size: int = DEFAULT_IMAGE_SIZE,
+) -> tuple[tf.data.Dataset, tf.data.Dataset, list[str]]:
+    """Load and prepare train, validation, and test datasets.
+
+    Loads images from the LOL Dataset directory structure:
+    - Training images: {dataset_path}/our485/low/*.png
+    - Test images: {dataset_path}/eval15/low/*.png
+
+    The training set is split into train (first max_train_images) and
+    validation (remaining images).
+
+    Args:
+        dataset_path: Root path to LOL dataset directory
+        max_train_images: Maximum number of images for training (rest used for validation)
+        batch_size: Batch size for datasets
+        image_size: Target image size for resizing
+
+    Returns:
+        Tuple of (train_dataset, val_dataset, test_image_paths)
+        - train_dataset: Training dataset (batched)
+        - val_dataset: Validation dataset (batched)
+        - test_image_paths: List of test image file paths
+
+    Raises:
+        FileNotFoundError: If dataset_path does not exist
+        ValueError: If no images are found in the dataset directories
+    """
+    # Validate dataset path
+    dataset_root = Path(dataset_path)
+    if not dataset_root.exists():
+        raise FileNotFoundError(
+            f"Dataset path not found: {dataset_path}\n"
+            f"Please download the LOL Dataset and place it in {dataset_path}"
+        )
+
+    # Load image paths
+    train_low_light_path = str(dataset_root / "our485" / "low" / "*")
+    test_low_light_path = str(dataset_root / "eval15" / "low" / "*")
+
+    train_low_light_images = sorted(glob(train_low_light_path))
+    test_low_light_images = sorted(glob(test_low_light_path))
+
+    # Validate images were found
+    if len(train_low_light_images) == 0:
+        raise ValueError(
+            f"No training images found in {train_low_light_path}\n"
+            f"Please check the dataset structure."
+        )
+
+    if len(test_low_light_images) == 0:
+        raise ValueError(
+            f"No test images found in {test_low_light_path}\n"
+            f"Please check the dataset structure."
+        )
+
+    # Split train and validation
+    train_images = train_low_light_images[:max_train_images]
+    val_images = train_low_light_images[max_train_images:]
+
+    # Validate split
+    if len(train_images) == 0:
+        raise ValueError(
+            f"No training images after split. "
+            f"max_train_images ({max_train_images}) may be too large or dataset is empty."
+        )
+
+    if len(val_images) == 0:
+        print(
+            f"Warning: No validation images. "
+            f"Total images: {len(train_low_light_images)}, "
+            f"max_train_images: {max_train_images}"
+        )
+
+    # Create datasets
+    train_dataset = data_generator(train_images, batch_size, image_size)
+    val_dataset = data_generator(val_images, batch_size, image_size)
+
+    return train_dataset, val_dataset, test_low_light_images

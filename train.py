@@ -1,95 +1,152 @@
+"""Training script for Zero-DCE model.
+
+This script provides a command-line interface for training the Zero-DCE model
+on the LOL Dataset. It integrates the dataset loading, model architecture, and
+loss functions into a complete training pipeline with configurable hyperparameters.
+"""
+
 import os
-import torch
-import torch.optim as optim
-from torch.utils.data import DataLoader
-from tqdm import tqdm
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import argparse
+from pathlib import Path
 
-# --- Import local modules ---
-from model import DCENet, enhance
-from loss import TotalLoss
-from dataset import LowLightDataset
+import matplotlib.pyplot as plt
 
-def train(args):
-    # --- Create directories if they don't exist ---
-    if not os.path.exists(args.weights_dir):
-        os.makedirs(args.weights_dir)
+from dataset import get_dataset
+from model import ZeroDCE
 
-    # --- Setup device (CPU or GPU) ---
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
 
-    # --- Initialize model, loss, and optimizer ---
-    model = DCENet().to(device)
-    criterion = TotalLoss().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+def plot_training_history(history, save_dir: str = "./training_plots"):
+    """Plot and save training history curves.
 
-    # --- Prepare dataset and dataloader ---
-    train_dataset = LowLightDataset(data_dir=args.data_dir, image_size=args.image_size)
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    Creates individual plots for each loss metric showing both training and
+    validation curves over epochs. Saves plots as PNG files in the specified
+    directory.
 
-    print("\n--- Starting Training ---")
-    model.train()
-    
-    for epoch in range(args.num_epochs):
-        # Use tqdm for a progress bar
-        loop = tqdm(train_loader, desc=f"Epoch [{epoch+1}/{args.num_epochs}]")
-        total_loss_epoch = 0
+    Args:
+        history: Keras History object returned from model.fit()
+        save_dir: Directory to save plot images (default: "./training_plots")
+    """
+    metrics = [
+        "total_loss",
+        "illumination_smoothness_loss",
+        "spatial_constancy_loss",
+        "color_constancy_loss",
+        "exposure_loss",
+    ]
 
-        for low_light_images in loop:
-            # Move data to the selected device
-            low_light_images = low_light_images.to(device)
+    # Create save directory if it doesn't exist
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-            # --- Forward pass ---
-            # 1. Get the curve parameters from the network
-            curve_params = model(low_light_images)
-            # 2. Apply the enhancement
-            enhanced_images = enhance(low_light_images, curve_params)
-            
-            # --- Calculate loss ---
-            # The loss function requires the original image, the enhanced image, and the curve parameters
-            loss, spa, exp, col, tvA = criterion(low_light_images, enhanced_images, curve_params)
+    # Plot each metric
+    for metric in metrics:
+        plt.figure(figsize=(10, 6))
+        plt.plot(history.history[metric], label=metric)
+        plt.plot(history.history[f"val_{metric}"], label=f"val_{metric}")
+        plt.xlabel("Epochs")
+        plt.ylabel(metric)
+        plt.title(f"Train and Validation {metric} Over Epochs")
+        plt.legend()
+        plt.grid()
+        plt.savefig(f"{save_dir}/{metric}.png")
+        plt.close()
 
-            # --- Backward pass and optimization ---
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+    print(f"Training plots saved to {save_dir}/")
 
-            # --- Update progress bar ---
-            total_loss_epoch += loss.item()
-            loop.set_postfix(
-                loss=f"{loss.item():.4f}",
-                spa=f"{spa.item():.4f}",
-                exp=f"{exp.item():.4f}",
-                col=f"{col.item():.4f}",
-                tvA=f"{tvA.item():.4f}"
-            )
-            
-        # --- Log average loss for the epoch ---
-        avg_loss = total_loss_epoch / len(train_loader)
-        print(f"Epoch [{epoch+1}/{args.num_epochs}] - Average Loss: {avg_loss:.4f}")
 
-        # --- Save model weights ---
-        if (epoch + 1) % args.save_interval == 0:
-            save_path = os.path.join(args.weights_dir, f"dce_net_epoch_{epoch+1}.pth")
-            torch.save(model.state_dict(), save_path)
-            print(f"Model weights saved to {save_path}")
+def main():
+    """Main training function with CLI argument parsing."""
+    parser = argparse.ArgumentParser(
+        description="Train Zero-DCE model for low-light image enhancement"
+    )
 
-    print("--- Training Finished ---")
+    # Dataset arguments
+    parser.add_argument(
+        "--dataset-path",
+        type=str,
+        default="./lol_dataset",
+        help="Path to LOL dataset directory",
+    )
+    parser.add_argument(
+        "--max-train-images",
+        type=int,
+        default=400,
+        help="Maximum number of images for training",
+    )
 
-if __name__ == '__main__':
-    # --- Argument Parser ---
-    parser = argparse.ArgumentParser(description="Train the Zero-DCE model.")
-    
-    parser.add_argument('--data_dir', type=str, default='data/train', help='Directory for training data.')
-    parser.add_argument('--weights_dir', type=str, default='weights', help='Directory to save model weights.')
-    parser.add_argument('--num_epochs', type=int, default=200, help='Number of training epochs.')
-    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training.')
-    parser.add_argument('--image_size', type=int, default=256, help='Image size for training.')
-    parser.add_argument('--learning_rate', type=float, default=1e-4, help='Learning rate for the optimizer.')
-    parser.add_argument('--save_interval', type=int, default=10, help='Save model weights every N epochs.')
-    
+    # Training arguments
+    parser.add_argument(
+        "--epochs", type=int, default=100, help="Number of training epochs"
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=16, help="Batch size for training"
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=1e-4,
+        help="Learning rate for Adam optimizer",
+    )
+    parser.add_argument(
+        "--image-size", type=int, default=256, help="Image size (height and width)"
+    )
+
+    # Output arguments
+    parser.add_argument(
+        "--save-path",
+        type=str,
+        default="./weights/zero_dce.weights.h5",
+        help="Path to save trained model weights",
+    )
+    parser.add_argument(
+        "--plot-dir",
+        type=str,
+        default="./training_plots",
+        help="Directory to save training plots",
+    )
+
     args = parser.parse_args()
-    
-    # --- Start training ---
-    train(args)
+
+    # Create output directories
+    Path(args.save_path).parent.mkdir(parents=True, exist_ok=True)
+
+    # Load datasets
+    print("Loading datasets...")
+    train_dataset, val_dataset, _ = get_dataset(
+        dataset_path=args.dataset_path,
+        max_train_images=args.max_train_images,
+        batch_size=args.batch_size,
+        image_size=args.image_size,
+    )
+
+    print(f"Train Dataset: {train_dataset}")
+    print(f"Validation Dataset: {val_dataset}")
+
+    # Build and compile model
+    print("\nBuilding Zero-DCE model...")
+    zero_dce_model = ZeroDCE()
+    zero_dce_model.compile(learning_rate=args.learning_rate)
+
+    # Train model
+    print(f"\nTraining for {args.epochs} epochs...")
+    history = zero_dce_model.fit(
+        train_dataset, validation_data=val_dataset, epochs=args.epochs
+    )
+
+    # Save model weights
+    print(f"\nSaving model weights to {args.save_path}...")
+    zero_dce_model.save_weights(args.save_path)
+
+    # Plot training history
+    print("\nGenerating training plots...")
+    plot_training_history(history, args.plot_dir)
+
+    print("\n✅ Training completed successfully!")
+    print(f"   Weights saved: {args.save_path}")
+    print(f"   Plots saved: {args.plot_dir}/")
+
+
+if __name__ == "__main__":
+    main()

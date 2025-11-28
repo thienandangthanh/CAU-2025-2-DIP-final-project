@@ -1,160 +1,198 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+"""Loss functions for Zero-DCE model.
 
-class ColorConstancyLoss(nn.Module):
+This module implements the four unsupervised loss functions used to train
+the Zero-DCE model without requiring paired training data. These losses
+guide the network to produce well-exposed, color-correct, and spatially
+coherent enhanced images.
+"""
+
+import keras
+import tensorflow as tf
+
+
+def color_constancy_loss(x: tf.Tensor) -> tf.Tensor:
+    """Compute color constancy loss.
+
+    Measures the deviation between average values of RGB channels to correct
+    potential color shifts in enhanced images. This loss encourages the model
+    to maintain color balance by penalizing differences between the mean
+    values of the R, G, and B channels.
+
+    Args:
+        x: Enhanced image tensor of shape (batch, height, width, 3)
+
+    Returns:
+        Color constancy loss value (scalar tensor)
     """
-    Enforces color constancy by penalizing deviations in the color channels of the enhanced image.
-    This is based on the "gray-world" hypothesis.
+    mean_rgb = tf.reduce_mean(x, axis=(1, 2), keepdims=True)
+    mr, mg, mb = (
+        mean_rgb[:, :, :, 0],
+        mean_rgb[:, :, :, 1],
+        mean_rgb[:, :, :, 2],
+    )
+    d_rg = tf.square(mr - mg)
+    d_rb = tf.square(mr - mb)
+    d_gb = tf.square(mb - mg)
+    return tf.sqrt(tf.square(d_rg) + tf.square(d_rb) + tf.square(d_gb))
+
+
+def exposure_loss(x: tf.Tensor, mean_val: float = 0.6) -> tf.Tensor:
+    """Compute exposure control loss.
+
+    Measures the distance between the average intensity value of local regions
+    and a preset well-exposedness level. This loss restrains under-exposed and
+    over-exposed regions by encouraging local image patches to have an average
+    intensity near the target value.
+
+    Args:
+        x: Enhanced image tensor of shape (batch, height, width, 3)
+        mean_val: Target exposure level (default: 0.6, a well-exposed value)
+
+    Returns:
+        Exposure control loss value (scalar tensor)
     """
-    def __init__(self):
-        super(ColorConstancyLoss, self).__init__()
+    x = tf.reduce_mean(x, axis=3, keepdims=True)
+    mean = tf.nn.avg_pool2d(x, ksize=16, strides=16, padding="VALID")
+    return tf.reduce_mean(tf.square(mean - mean_val))
 
-    def forward(self, enhanced_image):
-        # Calculate the mean of each color channel
-        mean_r = torch.mean(enhanced_image[:, 0, :, :])
-        mean_g = torch.mean(enhanced_image[:, 1, :, :])
-        mean_b = torch.mean(enhanced_image[:, 2, :, :])
 
-        # Calculate the squared differences between the channel means
-        d_rg = (mean_r - mean_g) ** 2
-        d_rb = (mean_r - mean_b) ** 2
-        d_gb = (mean_g - mean_b) ** 2
+def illumination_smoothness_loss(x: tf.Tensor) -> tf.Tensor:
+    """Compute illumination smoothness loss.
 
-        # The loss is the sum of these differences
-        loss = d_rg + d_rb + d_gb
-        return loss
+    Preserves the monotonicity relations between neighboring pixels by
+    minimizing the total variation in curve parameter maps. This loss
+    encourages smooth transitions in the learned curves, preventing
+    abrupt changes that could introduce artifacts.
 
-class ExposureControlLoss(nn.Module):
+    Args:
+        x: Curve parameter maps of shape (batch, height, width, channels)
+           Typically has 24 channels (8 iterations × 3 RGB channels)
+
+    Returns:
+        Illumination smoothness loss value (scalar tensor)
     """
-    Controls the exposure level of the image.
-    Penalizes patches that are too dark or too bright.
+    batch_size = tf.shape(x)[0]
+    h_x = tf.shape(x)[1]
+    w_x = tf.shape(x)[2]
+    count_h = (tf.shape(x)[2] - 1) * tf.shape(x)[3]
+    count_w = tf.shape(x)[2] * (tf.shape(x)[3] - 1)
+    h_tv = tf.reduce_sum(tf.square(x[:, 1:, :, :] - x[:, : h_x - 1, :, :]))
+    w_tv = tf.reduce_sum(tf.square(x[:, :, 1:, :] - x[:, :, : w_x - 1, :]))
+    batch_size = tf.cast(batch_size, dtype=tf.float32)
+    count_h = tf.cast(count_h, dtype=tf.float32)
+    count_w = tf.cast(count_w, dtype=tf.float32)
+    return 2 * (h_tv / count_h + w_tv / count_w) / batch_size
+
+
+class SpatialConsistencyLoss(keras.losses.Loss):
+    """Spatial consistency loss.
+
+    Encourages spatial coherence of the enhanced image by preserving the
+    contrast between neighboring regions across the input image and its
+    enhanced version. This loss computes the difference between neighboring
+    pixels in both the original and enhanced images, then penalizes
+    inconsistencies in these differences.
+
+    The loss uses four directional kernels (left, right, up, down) to compute
+    local differences, ensuring that the enhancement maintains the spatial
+    structure of the original image.
     """
-    def __init__(self, patch_size=16, mean_val=0.6):
-        super(ExposureControlLoss, self).__init__()
-        self.patch_size = patch_size
-        self.mean_val = mean_val
-        # Use average pooling to efficiently calculate the mean of non-overlapping patches
-        self.pool = nn.AvgPool2d(self.patch_size)
 
-    def forward(self, enhanced_image):
-        # Convert the image to grayscale for intensity calculation
-        # Using the standard luminosity formula: Y = 0.299*R + 0.587*G + 0.114*B
-        img_gray = 0.299 * enhanced_image[:, 0, :, :] + \
-                   0.587 * enhanced_image[:, 1, :, :] + \
-                   0.114 * enhanced_image[:, 2, :, :]
-        
-        # Add a channel dimension for the pooling layer
-        img_gray = img_gray.unsqueeze(1)
+    def __init__(self, **kwargs):
+        """Initialize the spatial consistency loss.
 
-        # Get the mean intensity of each patch
-        mean_intensity_patches = self.pool(img_gray)
-        
-        # Calculate the L1 distance from the desired mean value
-        loss = torch.mean(torch.abs(mean_intensity_patches - self.mean_val))
-        return loss
+        Creates four convolutional kernels for computing differences between
+        neighboring pixels in four directions (left, right, up, down).
+        """
+        super().__init__(reduction="none")
 
-class IlluminationSmoothnessLoss(nn.Module):
-    """
-    Enforces smoothness in the illumination maps (the curve parameters A).
-    This is a Total Variation (TV) loss on the parameter maps.
-    """
-    def __init__(self):
-        super(IlluminationSmoothnessLoss, self).__init__()
+        # Define kernels for computing differences with neighbors
+        self.left_kernel = tf.constant(
+            [[[[0, 0, 0]], [[-1, 1, 0]], [[0, 0, 0]]]], dtype=tf.float32
+        )
+        self.right_kernel = tf.constant(
+            [[[[0, 0, 0]], [[0, 1, -1]], [[0, 0, 0]]]], dtype=tf.float32
+        )
+        self.up_kernel = tf.constant(
+            [[[[0, -1, 0]], [[0, 1, 0]], [[0, 0, 0]]]], dtype=tf.float32
+        )
+        self.down_kernel = tf.constant(
+            [[[[0, 0, 0]], [[0, 1, 0]], [[0, -1, 0]]]], dtype=tf.float32
+        )
 
-    def forward(self, curve_params):
-        # Split the 24 channels into 8 separate 3-channel maps
-        batch_size, _, h, w = curve_params.shape
-        curve_maps = torch.split(curve_params, 3, dim=1)
-        
-        loss = 0
-        for A_n in curve_maps:
-            # Horizontal and vertical gradients
-            grad_h = torch.abs(A_n[:, :, :, :-1] - A_n[:, :, :, 1:])
-            grad_v = torch.abs(A_n[:, :, :-1, :] - A_n[:, :, 1:, :])
-            loss += torch.sum(grad_h) + torch.sum(grad_v)
-        
-        # Normalize by batch size
-        return loss / batch_size
+    def call(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+        """Compute spatial consistency loss between original and enhanced images.
 
-class SpatialConsistencyLoss(nn.Module):
-    """
-    Preserves the spatial coherence of the image by maintaining contrast
-    between neighboring regions in the original and enhanced images.
-    """
-    def __init__(self):
-        super(SpatialConsistencyLoss, self).__init__()
-        # Kernels to compute differences with left, right, up, and down neighbors
-        kernel_left = torch.FloatTensor([[0, 0, 0], [-1, 1, 0], [0, 0, 0]]).unsqueeze(0).unsqueeze(0)
-        kernel_right = torch.FloatTensor([[0, 0, 0], [0, 1, -1], [0, 0, 0]]).unsqueeze(0).unsqueeze(0)
-        kernel_up = torch.FloatTensor([[0, -1, 0], [0, 1, 0], [0, 0, 0]]).unsqueeze(0).unsqueeze(0)
-        kernel_down = torch.FloatTensor([[0, 0, 0], [0, 1, 0], [0, -1, 0]]).unsqueeze(0).unsqueeze(0)
-        
-        self.kernels = nn.Parameter(torch.cat([kernel_left, kernel_right, kernel_up, kernel_down], dim=0), requires_grad=False)
+        Args:
+            y_true: Original low-light image of shape (batch, height, width, 3)
+            y_pred: Enhanced image of shape (batch, height, width, 3)
 
-    def forward(self, original_image, enhanced_image):
-        # Convert images to grayscale
-        original_gray = 0.299 * original_image[:, 0, :, :] + 0.587 * original_image[:, 1, :, :] + 0.114 * original_image[:, 2, :, :]
-        enhanced_gray = 0.299 * enhanced_image[:, 0, :, :] + 0.587 * enhanced_image[:, 1, :, :] + 0.114 * enhanced_image[:, 2, :, :]
-        
-        original_gray = original_gray.unsqueeze(1)
-        enhanced_gray = enhanced_gray.unsqueeze(1)
+        Returns:
+            Spatial consistency loss tensor of shape (batch, height/4, width/4, 1)
+            Note: Returns per-pixel loss (not reduced) as reduction="none"
+        """
+        # Convert to grayscale by averaging channels
+        original_mean = tf.reduce_mean(y_true, 3, keepdims=True)
+        enhanced_mean = tf.reduce_mean(y_pred, 3, keepdims=True)
 
-        # Compute the gradients (differences with neighbors)
-        # padding='same' would be ideal, but for simplicity we use 'replicate' which is close
-        d_original = F.conv2d(original_gray, self.kernels, padding='same')
-        d_enhanced = F.conv2d(enhanced_gray, self.kernels, padding='same')
-        
-        # Calculate the L1 loss between the gradients
-        loss = torch.sum(torch.abs(d_original - d_enhanced))
-        
-        return loss
+        # Downsample to reduce computational cost
+        original_pool = tf.nn.avg_pool2d(
+            original_mean, ksize=4, strides=4, padding="VALID"
+        )
+        enhanced_pool = tf.nn.avg_pool2d(
+            enhanced_mean, ksize=4, strides=4, padding="VALID"
+        )
 
-class TotalLoss(nn.Module):
-    """
-    Combines all the individual loss components with their respective weights.
-    """
-    def __init__(self, W_spa=1.0, W_exp=10.0, W_col=5.0, W_tvA=200.0):
-        super(TotalLoss, self).__init__()
-        self.W_spa = W_spa
-        self.W_exp = W_exp
-        self.W_col = W_col
-        self.W_tvA = W_tvA
-        
-        self.loss_spa = SpatialConsistencyLoss()
-        self.loss_exp = ExposureControlLoss()
-        self.loss_col = ColorConstancyLoss()
-        self.loss_tvA = IlluminationSmoothnessLoss()
+        # Compute differences in four directions for original image
+        d_original_left = tf.nn.conv2d(
+            original_pool,
+            self.left_kernel,
+            strides=[1, 1, 1, 1],
+            padding="SAME",
+        )
+        d_original_right = tf.nn.conv2d(
+            original_pool,
+            self.right_kernel,
+            strides=[1, 1, 1, 1],
+            padding="SAME",
+        )
+        d_original_up = tf.nn.conv2d(
+            original_pool, self.up_kernel, strides=[1, 1, 1, 1], padding="SAME"
+        )
+        d_original_down = tf.nn.conv2d(
+            original_pool,
+            self.down_kernel,
+            strides=[1, 1, 1, 1],
+            padding="SAME",
+        )
 
-    def forward(self, original_image, enhanced_image, curve_params):
-        loss_spa = self.loss_spa(original_image, enhanced_image)
-        loss_exp = self.loss_exp(enhanced_image)
-        loss_col = self.loss_col(enhanced_image)
-        loss_tvA = self.loss_tvA(curve_params)
+        # Compute differences in four directions for enhanced image
+        d_enhanced_left = tf.nn.conv2d(
+            enhanced_pool,
+            self.left_kernel,
+            strides=[1, 1, 1, 1],
+            padding="SAME",
+        )
+        d_enhanced_right = tf.nn.conv2d(
+            enhanced_pool,
+            self.right_kernel,
+            strides=[1, 1, 1, 1],
+            padding="SAME",
+        )
+        d_enhanced_up = tf.nn.conv2d(
+            enhanced_pool, self.up_kernel, strides=[1, 1, 1, 1], padding="SAME"
+        )
+        d_enhanced_down = tf.nn.conv2d(
+            enhanced_pool,
+            self.down_kernel,
+            strides=[1, 1, 1, 1],
+            padding="SAME",
+        )
 
-        total_loss = self.W_spa * loss_spa + \
-                     self.W_exp * loss_exp + \
-                     self.W_col * loss_col + \
-                     self.W_tvA * loss_tvA
-                     
-        return total_loss, loss_spa, loss_exp, loss_col, loss_tvA
+        # Compute squared differences between original and enhanced differences
+        d_left = tf.square(d_original_left - d_enhanced_left)
+        d_right = tf.square(d_original_right - d_enhanced_right)
+        d_up = tf.square(d_original_up - d_enhanced_up)
+        d_down = tf.square(d_original_down - d_enhanced_down)
 
-# --- Simple test to verify implementation ---
-if __name__ == '__main__':
-    # Create dummy tensors
-    original_img = torch.randn(1, 3, 256, 256)
-    enhanced_img = torch.randn(1, 3, 256, 256).clamp(0,1) # Enhanced should be in [0,1]
-    curve_params = torch.randn(1, 24, 256, 256)
-
-    # Instantiate the total loss function
-    criterion = TotalLoss()
-
-    # Calculate the loss
-    total_loss, spa, exp, col, tvA = criterion(original_img, enhanced_img, curve_params)
-
-    print(f"Total Loss: {total_loss.item():.4f}")
-    print(f"  - Spatial Consistency Loss: {spa.item():.4f}")
-    print(f"  - Exposure Control Loss: {exp.item():.4f}")
-    print(f"  - Color Constancy Loss: {col.item():.4f}")
-    print(f"  - Illumination Smoothness Loss: {tvA.item():.4f}")
-    print("Loss functions implemented successfully!")
+        return d_left + d_right + d_up + d_down
