@@ -9,7 +9,7 @@ import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 from pathlib import Path
-from typing import Optional
+
 import keras
 
 from model import ZeroDCE
@@ -28,8 +28,8 @@ class ModelLoader:
 
     def __init__(self):
         """Initialize ModelLoader with no model loaded."""
-        self.current_model: Optional[ZeroDCE] = None
-        self.current_weights_path: Optional[str] = None
+        self.current_model: ZeroDCE | None = None
+        self.current_weights_path: str | None = None
 
     def load_model(self, weights_path: str) -> ZeroDCE:
         """Load Zero-DCE model with specified weights.
@@ -77,7 +77,7 @@ class ModelLoader:
         except Exception as e:
             raise Exception(f"Failed to load model weights: {str(e)}") from e
 
-    def get_model(self) -> Optional[ZeroDCE]:
+    def get_model(self) -> ZeroDCE | None:
         """Get the currently loaded model.
 
         Returns:
@@ -85,7 +85,7 @@ class ModelLoader:
         """
         return self.current_model
 
-    def get_weights_path(self) -> Optional[str]:
+    def get_weights_path(self) -> str | None:
         """Get the path to currently loaded weights.
 
         Returns:
@@ -113,7 +113,7 @@ class ModelLoader:
         # Clear Keras backend session if using TensorFlow
         try:
             keras.backend.clear_session()
-        except:
+        except Exception:
             pass
 
     def get_model_info(self) -> dict:

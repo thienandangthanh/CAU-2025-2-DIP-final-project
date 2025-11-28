@@ -10,14 +10,17 @@ This script tests the training functionality including:
 """
 
 import os
+
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
+
 import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend for testing
+
+matplotlib.use("Agg")  # Use non-interactive backend for testing
 
 # Import modules from train.py
 from dataset import get_dataset
@@ -34,7 +37,8 @@ print("1. Testing module imports...")
 try:
     from dataset import get_dataset
     from model import ZeroDCE
-    from train import plot_training_history, main
+    from train import main, plot_training_history
+
     print("   ✅ All imports successful")
 except Exception as e:
     print(f"   ❌ Import failed: {e}")
@@ -48,7 +52,7 @@ try:
         dataset_path="./lol_dataset",
         max_train_images=400,
         batch_size=4,  # Small batch for testing
-        image_size=256
+        image_size=256,
     )
     print(f"   ✅ Train dataset: {train_dataset}")
     print(f"   ✅ Val dataset: {val_dataset}")
@@ -77,9 +81,9 @@ try:
         train_dataset,
         validation_data=val_dataset,
         epochs=1,
-        verbose=0  # Suppress training output
+        verbose=0,  # Suppress training output
     )
-    
+
     # Check that all metrics are present
     expected_metrics = [
         "total_loss",
@@ -91,14 +95,14 @@ try:
         "val_illumination_smoothness_loss",
         "val_spatial_constancy_loss",
         "val_color_constancy_loss",
-        "val_exposure_loss"
+        "val_exposure_loss",
     ]
-    
+
     for metric in expected_metrics:
         if metric not in history.history:
             print(f"   ❌ Missing metric: {metric}")
             sys.exit(1)
-    
+
     print("   ✅ Training completed successfully")
     print(f"   ✅ Final train total_loss: {history.history['total_loss'][-1]:.4f}")
     print(f"   ✅ Final val total_loss: {history.history['val_total_loss'][-1]:.4f}")
@@ -113,17 +117,17 @@ try:
     # Create temporary directory for test
     temp_dir = tempfile.mkdtemp()
     weight_path = os.path.join(temp_dir, "test_weights.weights.h5")
-    
+
     # Save weights
     model.save_weights(weight_path)
     print(f"   ✅ Weights saved to {weight_path}")
-    
+
     # Load weights into a new model
     new_model = ZeroDCE()
     new_model.compile(learning_rate=1e-4)
     new_model.load_weights(weight_path)
     print("   ✅ Weights loaded successfully")
-    
+
     # Clean up
     shutil.rmtree(temp_dir)
     print("   ✅ Temporary files cleaned up")
@@ -139,19 +143,19 @@ print("6. Testing plot_training_history function...")
 try:
     # Create temporary directory for plots
     temp_plot_dir = tempfile.mkdtemp()
-    
+
     # Generate plots
     plot_training_history(history, save_dir=temp_plot_dir)
-    
+
     # Check that all plot files were created
     expected_plots = [
         "total_loss.png",
         "illumination_smoothness_loss.png",
         "spatial_constancy_loss.png",
         "color_constancy_loss.png",
-        "exposure_loss.png"
+        "exposure_loss.png",
     ]
-    
+
     for plot_name in expected_plots:
         plot_path = os.path.join(temp_plot_dir, plot_name)
         if not os.path.exists(plot_path):
@@ -163,9 +167,9 @@ try:
             print(f"   ❌ Empty plot file: {plot_name}")
             shutil.rmtree(temp_plot_dir)
             sys.exit(1)
-    
+
     print("   ✅ All 5 training plots generated successfully")
-    
+
     # Clean up
     shutil.rmtree(temp_plot_dir)
     print("   ✅ Temporary plot files cleaned up")
@@ -180,13 +184,14 @@ print()
 print("7. Testing CLI argument parsing...")
 try:
     import argparse
+
     from train import main
-    
+
     # Verify main function exists and is callable
     if not callable(main):
         print("   ❌ main() is not callable")
         sys.exit(1)
-    
+
     print("   ✅ CLI main function is callable")
     print("   ✅ Use 'python train.py --help' to see all options")
 except Exception as e:

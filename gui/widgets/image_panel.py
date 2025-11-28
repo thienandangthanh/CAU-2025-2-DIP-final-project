@@ -9,16 +9,16 @@ Supports drag & drop, click to open, and right-click context menu.
 """
 
 from pathlib import Path
-from typing import Optional, Callable
+
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPixmap
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
     QLabel,
-    QSizePolicy,
     QMenu,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect
-from PyQt6.QtGui import QPixmap, QPainter, QColor, QDragEnterEvent, QDropEvent, QPen
 
 from .histogram_overlay import HistogramOverlay
 
@@ -46,7 +46,7 @@ class ImagePanel(QWidget):
         self,
         title: str = "Image",
         placeholder_text: str = "Click to open an image",
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ):
         """Initialize the image panel.
 
@@ -59,11 +59,11 @@ class ImagePanel(QWidget):
 
         self.title = title
         self.placeholder_text = placeholder_text
-        self.current_pixmap: Optional[QPixmap] = None
-        self.image_path: Optional[str] = None
-        self.display_name: Optional[str] = None  # For enhanced images
+        self.current_pixmap: QPixmap | None = None
+        self.image_path: str | None = None
+        self.display_name: str | None = None  # For enhanced images
         self.is_processing = False
-        self.enhancement_time: Optional[str] = None  # For displaying enhancement timing
+        self.enhancement_time: str | None = None  # For displaying enhancement timing
 
         # Enable drag and drop
         self.setAcceptDrops(True)
@@ -204,8 +204,8 @@ class ImagePanel(QWidget):
     def set_image_from_pixmap(
         self,
         pixmap: QPixmap,
-        image_path: Optional[str] = None,
-        display_name: Optional[str] = None,
+        image_path: str | None = None,
+        display_name: str | None = None,
     ):
         """Set image from a QPixmap object.
 
@@ -354,7 +354,7 @@ class ImagePanel(QWidget):
             else:
                 self._show_placeholder()
 
-    def get_image_path(self) -> Optional[str]:
+    def get_image_path(self) -> str | None:
         """Get the path of the currently displayed image.
 
         Returns:
@@ -362,7 +362,7 @@ class ImagePanel(QWidget):
         """
         return self.image_path
 
-    def get_pixmap(self) -> Optional[QPixmap]:
+    def get_pixmap(self) -> QPixmap | None:
         """Get the current pixmap.
 
         Returns:
@@ -425,7 +425,7 @@ class ImagePanel(QWidget):
         else:
             self.info_label.hide()
 
-    def set_enhancement_time(self, time_str: Optional[str]):
+    def set_enhancement_time(self, time_str: str | None):
         """Set the enhancement time to display in info overlay.
 
         This method is used to display timing information for enhanced images.

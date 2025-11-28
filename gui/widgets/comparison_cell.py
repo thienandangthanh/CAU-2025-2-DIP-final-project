@@ -4,44 +4,43 @@ This widget is used within the ComparisonGrid to display a single enhancement
 result with method name, timing information, and status indicator.
 """
 
-from typing import Optional
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
     QLabel,
     QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap, QColor
 
 from .histogram_overlay import HistogramOverlay
 
 
 class ComparisonCell(QWidget):
     """Widget for displaying a single enhancement result in comparison mode.
-    
+
     This cell displays:
     - Method name label
     - Result image (scaled to fit)
     - Timing information
     - Status indicator (pending/running/done/error)
-    
+
     Signals:
         clicked: Emitted when the cell is clicked (to show expanded view)
     """
-    
+
     # Signals
     clicked = pyqtSignal(str)  # method_key
-    
+
     def __init__(
         self,
         method_key: str,
         method_name: str,
         is_reference: bool = False,
-        parent: Optional[QWidget] = None
+        parent: QWidget | None = None,
     ):
         """Initialize the comparison cell.
-        
+
         Args:
             method_key: Unique identifier for the method (e.g., "zero-dce")
             method_name: Display name for the method (e.g., "Zero-DCE")
@@ -49,30 +48,30 @@ class ComparisonCell(QWidget):
             parent: Parent widget
         """
         super().__init__(parent)
-        
+
         self.method_key = method_key
         self.method_name = method_name
         self.is_reference = is_reference
-        self.current_pixmap: Optional[QPixmap] = None
+        self.current_pixmap: QPixmap | None = None
         self.status = "pending"  # pending/running/done/error
-        self.timing_text: Optional[str] = None
-        
+        self.timing_text: str | None = None
+
         # Set size policy - Expanding to fill space while maintaining similar dimensions
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(250, 300)  # Minimum size for readability
-        
+
         # Enable mouse tracking for click events
         self.setMouseTracking(True)
-        
+
         # Initialize UI
         self._init_ui()
-    
+
     def _init_ui(self):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
-        
+
         # Method name label
         self.name_label = QLabel(self.method_name)
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -89,7 +88,7 @@ class ComparisonCell(QWidget):
             """
         )
         layout.addWidget(self.name_label)
-        
+
         # Image display label - expanding to use available space
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -113,7 +112,7 @@ class ComparisonCell(QWidget):
         self.histogram_overlay.hide()
         self.histogram_visible = False
         self.histogram_type = "grayscale"
-        
+
         # Status/timing label
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -127,23 +126,23 @@ class ComparisonCell(QWidget):
             """
         )
         layout.addWidget(self.status_label)
-        
+
         # Show initial status
         self._update_status_display()
-    
+
     def set_image(self, pixmap: QPixmap):
         """Set the image to display.
-        
+
         Args:
             pixmap: QPixmap to display
         """
         if pixmap.isNull():
             return
-        
+
         self.current_pixmap = pixmap
         self._update_image_display()
         self._refresh_histogram_overlay()
-        
+
         # Update border style when image is loaded
         if not self.is_reference:
             self.image_label.setStyleSheet(
@@ -155,10 +154,10 @@ class ComparisonCell(QWidget):
                 }
                 """
             )
-    
-    def set_status(self, status: str, timing_text: Optional[str] = None):
+
+    def set_status(self, status: str, timing_text: str | None = None):
         """Set the status and optional timing information.
-        
+
         Args:
             status: Status string ("pending", "running", "done", "error")
             timing_text: Optional timing text (e.g., "2.34s")
@@ -167,10 +166,10 @@ class ComparisonCell(QWidget):
         self.timing_text = timing_text
         self._update_status_display()
         self._update_border_style()
-    
+
     def set_error(self, error_message: str):
         """Set error status with message.
-        
+
         Args:
             error_message: Error message to display
         """
@@ -178,7 +177,7 @@ class ComparisonCell(QWidget):
         self.timing_text = None
         self._update_status_display()
         self._update_border_style()
-        
+
         # Show error in image label
         self.image_label.setText(f"Error: {error_message}")
         self.image_label.setStyleSheet(
@@ -193,7 +192,7 @@ class ComparisonCell(QWidget):
             }
             """
         )
-    
+
     def _update_status_display(self):
         """Update the status label text based on current status."""
         if self.is_reference:
@@ -203,7 +202,7 @@ class ComparisonCell(QWidget):
             else:
                 self.status_label.setText("Waiting...")
             return
-        
+
         # Enhancement method cell
         if self.status == "pending":
             self.status_label.setText("Pending...")
@@ -216,12 +215,12 @@ class ComparisonCell(QWidget):
                 self.status_label.setText("Completed")
         elif self.status == "error":
             self.status_label.setText("Error")
-    
+
     def _update_border_style(self):
         """Update border style based on status."""
         if self.is_reference or not self.current_pixmap:
             return
-        
+
         if self.status == "running":
             border_color = "#2196F3"  # Blue for running
         elif self.status == "done":
@@ -230,7 +229,7 @@ class ComparisonCell(QWidget):
             border_color = "#F44336"  # Red for error
         else:
             border_color = "#CCCCCC"  # Gray for pending
-        
+
         self.image_label.setStyleSheet(
             f"""
             QLabel {{
@@ -240,25 +239,25 @@ class ComparisonCell(QWidget):
             }}
             """
         )
-    
+
     def _update_image_display(self):
         """Update the image label to show the current pixmap fitted to the cell."""
         if self.current_pixmap is None:
             return
-        
+
         # Get available size
         available_size = self.image_label.size()
-        
+
         # Scale pixmap to fit while maintaining aspect ratio
         scaled_pixmap = self.current_pixmap.scaled(
             available_size,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
-        
+
         self.image_label.setPixmap(scaled_pixmap)
         self._refresh_histogram_overlay()
-    
+
     def clear(self):
         """Clear the cell and return to initial state."""
         self.current_pixmap = None
@@ -276,19 +275,19 @@ class ComparisonCell(QWidget):
         )
         self._update_status_display()
         self.histogram_overlay.hide()
-    
+
     def mousePressEvent(self, event):
         """Handle mouse press events for cell click.
-        
+
         Args:
             event: Mouse event
         """
         if event.button() == Qt.MouseButton.LeftButton and self.current_pixmap:
             self.clicked.emit(self.method_key)
-    
+
     def resizeEvent(self, event):
         """Handle resize event to update image display.
-        
+
         Args:
             event: Resize event
         """

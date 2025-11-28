@@ -4,10 +4,8 @@ This widget provides a prominent button for triggering image enhancement
 with multiple states (disabled, ready, processing, completed).
 """
 
-from typing import Optional
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QPushButton, QWidget
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QIcon, QPalette, QColor
 
 
 class EnhanceButton(QPushButton):
@@ -26,7 +24,7 @@ class EnhanceButton(QPushButton):
     # Signals
     enhance_clicked = pyqtSignal()
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         """Initialize the enhance button.
 
         Args:
@@ -189,7 +187,10 @@ class EnhanceButton(QPushButton):
         """
         if event.key() == Qt.Key.Key_Space and self.is_ready:
             self._on_clicked()
-        elif event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_E:
+        elif (
+            event.modifiers() == Qt.KeyboardModifier.ControlModifier
+            and event.key() == Qt.Key.Key_E
+        ):
             if self.is_ready:
                 self._on_clicked()
         else:

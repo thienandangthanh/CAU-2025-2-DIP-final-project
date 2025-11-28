@@ -10,8 +10,9 @@ import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import argparse
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 
 from dataset import get_dataset
 from model import ZeroDCE

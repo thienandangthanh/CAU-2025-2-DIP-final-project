@@ -6,8 +6,8 @@ Uses Qt's QSettings for cross-platform persistent storage.
 """
 
 from pathlib import Path
-from typing import Optional, List
-from PyQt6.QtCore import QSettings, QSize, QPoint
+
+from PyQt6.QtCore import QPoint, QSettings, QSize
 
 
 class AppSettings:
@@ -121,7 +121,7 @@ class AppSettings:
 
     # ==================== Recent Files ====================
 
-    def get_recent_files(self) -> List[str]:
+    def get_recent_files(self) -> list[str]:
         """Get list of recently opened files.
 
         Returns:
@@ -159,7 +159,7 @@ class AppSettings:
 
     # ==================== Window Geometry ====================
 
-    def get_window_geometry(self) -> tuple[Optional[QPoint], Optional[QSize]]:
+    def get_window_geometry(self) -> tuple[QPoint | None, QSize | None]:
         """Get saved window position and size.
 
         Returns:

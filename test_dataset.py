@@ -17,13 +17,17 @@ print(f"   Test images: {len(test_paths)}")
 print("\n2. Checking training batch shape and value range...")
 for batch in train_ds.take(1):
     print(f"   Training batch shape: {batch.shape}")
-    print(f"   Training batch value range: [{batch.numpy().min():.3f}, {batch.numpy().max():.3f}]")
+    print(
+        f"   Training batch value range: [{batch.numpy().min():.3f}, {batch.numpy().max():.3f}]"
+    )
 
 # Test validation batch shapes
 print("\n3. Checking validation batch shape and value range...")
 for batch in val_ds.take(1):
     print(f"   Validation batch shape: {batch.shape}")
-    print(f"   Validation batch value range: [{batch.numpy().min():.3f}, {batch.numpy().max():.3f}]")
+    print(
+        f"   Validation batch value range: [{batch.numpy().min():.3f}, {batch.numpy().max():.3f}]"
+    )
 
 print("\n" + "=" * 60)
 print("✅ All tests passed successfully!")

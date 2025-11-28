@@ -4,18 +4,15 @@ This module provides a dialog for showing errors with technical details
 and suggested solutions.
 """
 
-from typing import Optional
 from PyQt6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
 
 
 class ErrorDialog(QDialog):
@@ -32,9 +29,9 @@ class ErrorDialog(QDialog):
         self,
         title: str,
         message: str,
-        details: Optional[str] = None,
-        solution: Optional[str] = None,
-        parent: Optional[QWidget] = None,
+        details: str | None = None,
+        solution: str | None = None,
+        parent: QWidget | None = None,
     ):
         """Initialize the error dialog.
 
@@ -214,7 +211,9 @@ class ErrorDialog(QDialog):
         """Copy error message and details to clipboard."""
         from PyQt6.QtWidgets import QApplication
 
-        error_text = f"{self.title}\n\n{self.message}\n\nTechnical Details:\n{self.details}"
+        error_text = (
+            f"{self.title}\n\n{self.message}\n\nTechnical Details:\n{self.details}"
+        )
         clipboard = QApplication.clipboard()
         clipboard.setText(error_text)
 
@@ -237,9 +236,9 @@ class ErrorDialog(QDialog):
     def show_error(
         title: str,
         message: str,
-        details: Optional[str] = None,
-        solution: Optional[str] = None,
-        parent: Optional[QWidget] = None,
+        details: str | None = None,
+        solution: str | None = None,
+        parent: QWidget | None = None,
     ) -> None:
         """Show an error dialog (convenience method).
 
@@ -256,7 +255,7 @@ class ErrorDialog(QDialog):
     # ==================== Common Error Types ====================
 
     @staticmethod
-    def show_model_error(error: Exception, parent: Optional[QWidget] = None):
+    def show_model_error(error: Exception, parent: QWidget | None = None):
         """Show a model loading/inference error.
 
         Args:
@@ -272,7 +271,7 @@ class ErrorDialog(QDialog):
         )
 
     @staticmethod
-    def show_image_error(error: Exception, parent: Optional[QWidget] = None):
+    def show_image_error(error: Exception, parent: QWidget | None = None):
         """Show an image loading/saving error.
 
         Args:
@@ -288,7 +287,7 @@ class ErrorDialog(QDialog):
         )
 
     @staticmethod
-    def show_file_error(error: Exception, parent: Optional[QWidget] = None):
+    def show_file_error(error: Exception, parent: QWidget | None = None):
         """Show a file I/O error.
 
         Args:
@@ -304,7 +303,7 @@ class ErrorDialog(QDialog):
         )
 
     @staticmethod
-    def show_memory_error(parent: Optional[QWidget] = None):
+    def show_memory_error(parent: QWidget | None = None):
         """Show an out of memory error.
 
         Args:

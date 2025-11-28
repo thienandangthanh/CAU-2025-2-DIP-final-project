@@ -10,15 +10,16 @@ import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import argparse
-import numpy as np
 from pathlib import Path
-from PIL import Image
-import matplotlib.pyplot as plt
-import keras
-import tensorflow as tf
 
-from model import ZeroDCE
+import keras
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from PIL import Image
+
 from classical_methods import CLASSICAL_METHODS
+from model import ZeroDCE
 
 
 def load_model_for_inference(weights_path: str) -> ZeroDCE:
@@ -135,7 +136,7 @@ def compare_methods(
     for method_key in methods:
         # Handle Zero-DCE separately
         if method_key == "zero-dce":
-            print(f"  - Zero-DCE")
+            print("  - Zero-DCE")
             results["Zero-DCE"] = enhance_with_zero_dce(original_image, model)
             # Handle classical methods from classical_methods module
         elif method_key in CLASSICAL_METHODS:
@@ -155,7 +156,7 @@ def compare_methods(
     if num_images == 1:
         axes = [axes]
 
-    for ax, (title, img) in zip(axes, results.items()):
+    for ax, (title, img) in zip(axes, results.items(), strict=True):
         ax.imshow(img)
         ax.set_title(title, fontsize=14, fontweight="bold")
         ax.axis("off")
@@ -178,7 +179,7 @@ def compare_methods(
         output_dir = Path(output_path).parent / "individual"
         output_dir.mkdir(exist_ok=True)
 
-        print(f"\nSaving individual enhanced images...")
+        print("\nSaving individual enhanced images...")
         for title, img in results.items():
             if title != "Original":
                 # Create filename from title

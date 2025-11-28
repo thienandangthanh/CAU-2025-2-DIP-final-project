@@ -1,9 +1,9 @@
 """Tests for HistogramOverlay widget."""
 
 import pytest
-from PyQt6.QtWidgets import QApplication, QLabel
-from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QApplication, QLabel
 
 from gui.widgets.histogram_overlay import HistogramOverlay
 

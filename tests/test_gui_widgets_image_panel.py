@@ -9,11 +9,12 @@ Tests the image display widget functionality including:
 - Info overlay display
 """
 
-import pytest
 from pathlib import Path
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QPixmap
+
+import pytest
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QApplication
 
 from gui.widgets.image_panel import ImagePanel
 
@@ -37,8 +38,8 @@ def image_panel(qapp):
 @pytest.fixture
 def sample_image_path(tmp_path):
     """Create a sample image file for testing."""
-    from PIL import Image
     import numpy as np
+    from PIL import Image
 
     # Create a simple test image (100x100 red square)
     image_array = np.zeros((100, 100, 3), dtype=np.uint8)

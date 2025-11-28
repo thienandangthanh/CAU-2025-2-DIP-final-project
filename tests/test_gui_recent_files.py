@@ -4,11 +4,12 @@ This module tests the Recent Files submenu implementation in the main window,
 including adding files, clearing files, and menu updates.
 """
 
-import pytest
 from pathlib import Path
-from PyQt6.QtWidgets import QMenu
-from PyQt6.QtGui import QAction
+
+import pytest
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QMenu
 
 from gui.main_window import MainWindow
 from gui.utils import AppSettings

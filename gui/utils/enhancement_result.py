@@ -6,7 +6,6 @@ method name, and quality metrics. This class is designed to be extensible for
 comparison features.
 """
 
-from typing import Optional
 from PIL import Image
 
 
@@ -41,7 +40,7 @@ class EnhancementResult:
         image: Image.Image,
         method_name: str,
         elapsed_time: float,
-        quality_metrics: Optional[dict] = None,
+        quality_metrics: dict | None = None,
     ):
         """Initialize EnhancementResult.
 

@@ -1,20 +1,20 @@
 """Utility modules for GUI application."""
 
-from .settings import AppSettings
-from .model_loader import ModelLoader
-from .image_processor import ImageProcessor
-from .enhancement_result import EnhancementResult
 from .enhancement_methods import (
     EnhancementMethod,
     EnhancementMethodRegistry,
     ExecutionSpeed,
     get_registry,
 )
+from .enhancement_result import EnhancementResult
 from .enhancement_runner import (
     EnhancementRunner,
     EnhancementRunnerThread,
     enhance_with_methods,
 )
+from .image_processor import ImageProcessor
+from .model_loader import ModelLoader
+from .settings import AppSettings
 
 __all__ = [
     "AppSettings",

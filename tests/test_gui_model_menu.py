@@ -6,11 +6,12 @@ Tests cover:
 - Epoch extraction from filenames
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from PyQt6.QtWidgets import QApplication
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
 
 from gui.main_window import MainWindow
 from gui.utils.model_loader import ModelLoader
@@ -182,7 +183,9 @@ class TestDefaultWeightsSubmenu:
                 actions[0].trigger()
 
                 # Verify _load_model_weights was called with save_as_default=True
-                mock_load.assert_called_once_with(str(weight_file), save_as_default=True)
+                mock_load.assert_called_once_with(
+                    str(weight_file), save_as_default=True
+                )
 
     def test_checkmark_with_relative_vs_absolute_paths(self, main_window, tmp_path):
         """Test that checkmark works even with relative vs absolute path differences."""
@@ -289,7 +292,7 @@ class TestModelMenuUpdates:
             with patch.object(
                 ModelLoader, "list_available_weights", return_value=[str(weight_file)]
             ):
-                with patch.object(main_window.model_loader, "load_model") as mock_load:
+                with patch.object(main_window.model_loader, "load_model"):
                     with patch.object(
                         ModelLoader, "validate_weights_file", return_value=(True, "")
                     ):

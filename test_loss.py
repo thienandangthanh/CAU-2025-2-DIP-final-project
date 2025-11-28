@@ -1,11 +1,12 @@
 """Test script for loss.py module."""
 
 import tensorflow as tf
+
 from loss import (
+    SpatialConsistencyLoss,
     color_constancy_loss,
     exposure_loss,
     illumination_smoothness_loss,
-    SpatialConsistencyLoss
 )
 
 print("Testing loss.py module...")
@@ -46,7 +47,7 @@ print(f"   Loss is non-negative: {(ill_loss >= 0).numpy()}")
 # Test SpatialConsistencyLoss class
 print("\n5. Testing SpatialConsistencyLoss class...")
 spatial_loss_fn = SpatialConsistencyLoss()
-print(f"   SpatialConsistencyLoss instantiated successfully")
+print("   SpatialConsistencyLoss instantiated successfully")
 
 # Test with identical images (should have low loss)
 spatial_loss_identical = spatial_loss_fn(image, image)
@@ -66,17 +67,19 @@ print("\n6. Testing Keras API compatibility...")
 try:
     # Create a simple model that uses the loss
     import keras
-    
+
     # Test that spatial loss works with model.compile()
     test_model = keras.Sequential([keras.layers.Dense(1)])
-    test_model.compile(optimizer='adam', loss=SpatialConsistencyLoss())
-    print(f"   ✅ SpatialConsistencyLoss compatible with Keras API")
+    test_model.compile(optimizer="adam", loss=SpatialConsistencyLoss())
+    print("   ✅ SpatialConsistencyLoss compatible with Keras API")
 except Exception as e:
     print(f"   ❌ Error with Keras API: {e}")
 
 # Summary statistics
 print("\n7. Loss value ranges (for reference)...")
-print(f"   Color constancy loss range: {tf.reduce_min(cc_loss).numpy():.6f} to {tf.reduce_max(cc_loss).numpy():.6f}")
+print(
+    f"   Color constancy loss range: {tf.reduce_min(cc_loss).numpy():.6f} to {tf.reduce_max(cc_loss).numpy():.6f}"
+)
 print(f"   Exposure loss: {exp_loss.numpy():.6f}")
 print(f"   Illumination smoothness loss: {ill_loss.numpy():.6f}")
 print(f"   Spatial consistency loss (mean): {mean_loss_different.numpy():.6f}")

@@ -8,12 +8,11 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import numpy as np
 from pathlib import Path
-from typing import Optional, Tuple
+
+import numpy as np
 from PIL import Image
-import tensorflow as tf
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtGui import QImage, QPixmap
 
 from model import ZeroDCE
 
@@ -35,7 +34,7 @@ class ImageProcessor:
     SUPPORTED_FORMATS = [".jpg", ".jpeg", ".png", ".bmp"]
 
     @staticmethod
-    def load_image(filepath: str, max_dimension: Optional[int] = None) -> Image.Image:
+    def load_image(filepath: str, max_dimension: int | None = None) -> Image.Image:
         """Load an image from file.
 
         Args:
@@ -72,7 +71,10 @@ class ImageProcessor:
 
             # Check dimensions
             width, height = image.size
-            if width < ImageProcessor.MIN_DIMENSION or height < ImageProcessor.MIN_DIMENSION:
+            if (
+                width < ImageProcessor.MIN_DIMENSION
+                or height < ImageProcessor.MIN_DIMENSION
+            ):
                 raise ValueError(
                     f"Image too small: {width}x{height}. "
                     f"Minimum dimension: {ImageProcessor.MIN_DIMENSION}px"
@@ -147,7 +149,7 @@ class ImageProcessor:
 
     @staticmethod
     def enhance_image(
-        image: Image.Image, model: ZeroDCE, original_size: Optional[Tuple[int, int]] = None
+        image: Image.Image, model: ZeroDCE, original_size: tuple[int, int] | None = None
     ) -> Image.Image:
         """Enhance an image using the Zero-DCE model.
 
@@ -178,7 +180,9 @@ class ImageProcessor:
 
         # Resize to original size if needed
         if enhanced_image.size != original_size:
-            enhanced_image = enhanced_image.resize(original_size, Image.Resampling.LANCZOS)
+            enhanced_image = enhanced_image.resize(
+                original_size, Image.Resampling.LANCZOS
+            )
 
         return enhanced_image
 
@@ -282,7 +286,7 @@ class ImageProcessor:
         return Image.fromarray(rgb_array, mode="RGB")
 
     @staticmethod
-    def validate_image_file(filepath: str) -> Tuple[bool, str]:
+    def validate_image_file(filepath: str) -> tuple[bool, str]:
         """Validate an image file without fully loading it.
 
         Args:
@@ -317,9 +321,15 @@ class ImageProcessor:
             with Image.open(filepath) as img:
                 # Check dimensions
                 width, height = img.size
-                if width < ImageProcessor.MIN_DIMENSION or height < ImageProcessor.MIN_DIMENSION:
+                if (
+                    width < ImageProcessor.MIN_DIMENSION
+                    or height < ImageProcessor.MIN_DIMENSION
+                ):
                     return False, f"Image too small: {width}x{height}"
-                if width > ImageProcessor.MAX_DIMENSION or height > ImageProcessor.MAX_DIMENSION:
+                if (
+                    width > ImageProcessor.MAX_DIMENSION
+                    or height > ImageProcessor.MAX_DIMENSION
+                ):
                     return False, f"Image too large: {width}x{height}"
 
             return True, ""

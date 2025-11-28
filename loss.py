@@ -6,21 +6,21 @@ guide the network to produce well-exposed, color-correct, and spatially
 coherent enhanced images.
 """
 
-import tensorflow as tf
 import keras
+import tensorflow as tf
 
 
 def color_constancy_loss(x: tf.Tensor) -> tf.Tensor:
     """Compute color constancy loss.
-    
+
     Measures the deviation between average values of RGB channels to correct
     potential color shifts in enhanced images. This loss encourages the model
     to maintain color balance by penalizing differences between the mean
     values of the R, G, and B channels.
-    
+
     Args:
         x: Enhanced image tensor of shape (batch, height, width, 3)
-    
+
     Returns:
         Color constancy loss value (scalar tensor)
     """
@@ -38,16 +38,16 @@ def color_constancy_loss(x: tf.Tensor) -> tf.Tensor:
 
 def exposure_loss(x: tf.Tensor, mean_val: float = 0.6) -> tf.Tensor:
     """Compute exposure control loss.
-    
+
     Measures the distance between the average intensity value of local regions
     and a preset well-exposedness level. This loss restrains under-exposed and
     over-exposed regions by encouraging local image patches to have an average
     intensity near the target value.
-    
+
     Args:
         x: Enhanced image tensor of shape (batch, height, width, 3)
         mean_val: Target exposure level (default: 0.6, a well-exposed value)
-    
+
     Returns:
         Exposure control loss value (scalar tensor)
     """
@@ -58,16 +58,16 @@ def exposure_loss(x: tf.Tensor, mean_val: float = 0.6) -> tf.Tensor:
 
 def illumination_smoothness_loss(x: tf.Tensor) -> tf.Tensor:
     """Compute illumination smoothness loss.
-    
+
     Preserves the monotonicity relations between neighboring pixels by
     minimizing the total variation in curve parameter maps. This loss
     encourages smooth transitions in the learned curves, preventing
     abrupt changes that could introduce artifacts.
-    
+
     Args:
         x: Curve parameter maps of shape (batch, height, width, channels)
            Typically has 24 channels (8 iterations × 3 RGB channels)
-    
+
     Returns:
         Illumination smoothness loss value (scalar tensor)
     """
@@ -76,8 +76,8 @@ def illumination_smoothness_loss(x: tf.Tensor) -> tf.Tensor:
     w_x = tf.shape(x)[2]
     count_h = (tf.shape(x)[2] - 1) * tf.shape(x)[3]
     count_w = tf.shape(x)[2] * (tf.shape(x)[3] - 1)
-    h_tv = tf.reduce_sum(tf.square((x[:, 1:, :, :] - x[:, : h_x - 1, :, :])))
-    w_tv = tf.reduce_sum(tf.square((x[:, :, 1:, :] - x[:, :, : w_x - 1, :])))
+    h_tv = tf.reduce_sum(tf.square(x[:, 1:, :, :] - x[:, : h_x - 1, :, :]))
+    w_tv = tf.reduce_sum(tf.square(x[:, :, 1:, :] - x[:, :, : w_x - 1, :]))
     batch_size = tf.cast(batch_size, dtype=tf.float32)
     count_h = tf.cast(count_h, dtype=tf.float32)
     count_w = tf.cast(count_w, dtype=tf.float32)
@@ -86,21 +86,21 @@ def illumination_smoothness_loss(x: tf.Tensor) -> tf.Tensor:
 
 class SpatialConsistencyLoss(keras.losses.Loss):
     """Spatial consistency loss.
-    
+
     Encourages spatial coherence of the enhanced image by preserving the
     contrast between neighboring regions across the input image and its
     enhanced version. This loss computes the difference between neighboring
     pixels in both the original and enhanced images, then penalizes
     inconsistencies in these differences.
-    
+
     The loss uses four directional kernels (left, right, up, down) to compute
     local differences, ensuring that the enhancement maintains the spatial
     structure of the original image.
     """
-    
+
     def __init__(self, **kwargs):
         """Initialize the spatial consistency loss.
-        
+
         Creates four convolutional kernels for computing differences between
         neighboring pixels in four directions (left, right, up, down).
         """
@@ -122,11 +122,11 @@ class SpatialConsistencyLoss(keras.losses.Loss):
 
     def call(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
         """Compute spatial consistency loss between original and enhanced images.
-        
+
         Args:
             y_true: Original low-light image of shape (batch, height, width, 3)
             y_pred: Enhanced image of shape (batch, height, width, 3)
-        
+
         Returns:
             Spatial consistency loss tensor of shape (batch, height/4, width/4, 1)
             Note: Returns per-pixel loss (not reduced) as reduction="none"
@@ -134,7 +134,7 @@ class SpatialConsistencyLoss(keras.losses.Loss):
         # Convert to grayscale by averaging channels
         original_mean = tf.reduce_mean(y_true, 3, keepdims=True)
         enhanced_mean = tf.reduce_mean(y_pred, 3, keepdims=True)
-        
+
         # Downsample to reduce computational cost
         original_pool = tf.nn.avg_pool2d(
             original_mean, ksize=4, strides=4, padding="VALID"
@@ -194,5 +194,5 @@ class SpatialConsistencyLoss(keras.losses.Loss):
         d_right = tf.square(d_original_right - d_enhanced_right)
         d_up = tf.square(d_original_up - d_enhanced_up)
         d_down = tf.square(d_original_down - d_enhanced_down)
-        
+
         return d_left + d_right + d_up + d_down

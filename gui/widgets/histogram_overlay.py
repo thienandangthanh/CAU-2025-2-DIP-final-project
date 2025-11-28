@@ -8,23 +8,20 @@ ComparisonCell widgets without creating tight coupling.
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Union
-
 import numpy as np
 from PyQt6.QtCore import QPoint, QRect, Qt
 from PyQt6.QtGui import (
     QColor,
     QImage,
     QMouseEvent,
-    QPaintEvent,
     QPainter,
+    QPaintEvent,
     QPen,
     QPixmap,
 )
 from PyQt6.QtWidgets import QWidget
 
-
-HistogramData = Union[np.ndarray, Dict[str, np.ndarray]]
+HistogramData = np.ndarray | dict[str, np.ndarray]
 
 
 class HistogramOverlay(QWidget):
@@ -35,7 +32,7 @@ class HistogramOverlay(QWidget):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
         histogram_type: str = "grayscale",
     ):
         super().__init__(parent)
@@ -44,18 +41,18 @@ class HistogramOverlay(QWidget):
         self.resize(*self.DEFAULT_SIZE)
 
         self.histogram_type = histogram_type
-        self.current_pixmap: Optional[QPixmap] = None
-        self._hist_cache: Dict[str, HistogramData] = {}
+        self.current_pixmap: QPixmap | None = None
+        self._hist_cache: dict[str, HistogramData] = {}
         self._dragging = False
         self._drag_offset = QPoint()
-        self._custom_position: Optional[QPoint] = None
+        self._custom_position: QPoint | None = None
 
         # Hidden by default; parent widget controls visibility explicitly
         self.hide()
 
     # ------------------------------------------------------------------ API --
 
-    def set_pixmap(self, pixmap: Optional[QPixmap]):
+    def set_pixmap(self, pixmap: QPixmap | None):
         """Attach a pixmap and invalidate cached histograms."""
         self.current_pixmap = pixmap
         self._hist_cache.clear()
@@ -77,7 +74,7 @@ class HistogramOverlay(QWidget):
             self._ensure_histogram_cached()
             self.update()
 
-    def histogram_snapshot(self) -> Optional[Union[list[float], Dict[str, list[float]]]]:
+    def histogram_snapshot(self) -> list[float] | dict[str, list[float]] | None:
         """Return a copy of the currently cached histogram data.
 
         This is primarily used for tests and potential analytics integrations.
@@ -216,7 +213,7 @@ class HistogramOverlay(QWidget):
                 int(end[1]),
             )
 
-    def _draw_rgb(self, painter: QPainter, rect: QRect, data: Dict[str, np.ndarray]):
+    def _draw_rgb(self, painter: QPainter, rect: QRect, data: dict[str, np.ndarray]):
         colors = {
             "r": QColor(244, 67, 54, 210),
             "g": QColor(76, 175, 80, 210),
@@ -241,7 +238,7 @@ class HistogramOverlay(QWidget):
                 end_x = rect.left() + (idx + 1) * step
                 painter.drawLine(int(start_x), int(start_y), int(end_x), int(end_y))
 
-    def _downsample(self, values: np.ndarray) -> Optional[np.ndarray]:
+    def _downsample(self, values: np.ndarray) -> np.ndarray | None:
         if values.size == 0:
             return None
         if values.size == self.TARGET_BINS:
@@ -255,7 +252,7 @@ class HistogramOverlay(QWidget):
 
     # ------------------------------------------------------- Histogram calc --
 
-    def _ensure_histogram_cached(self) -> Optional[HistogramData]:
+    def _ensure_histogram_cached(self) -> HistogramData | None:
         if self.current_pixmap is None:
             return None
 
@@ -274,7 +271,7 @@ class HistogramOverlay(QWidget):
         self._hist_cache[self.histogram_type] = hist
         return hist
 
-    def _pixmap_to_rgb_array(self) -> Optional[np.ndarray]:
+    def _pixmap_to_rgb_array(self) -> np.ndarray | None:
         if self.current_pixmap is None or self.current_pixmap.isNull():
             return None
 
@@ -292,13 +289,13 @@ class HistogramOverlay(QWidget):
         return array[..., :3]
 
     def _calculate_grayscale(self, rgb: np.ndarray) -> np.ndarray:
-        gray = (
-            0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
-        ).astype(np.uint8)
+        gray = (0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]).astype(
+            np.uint8
+        )
         hist, _ = np.histogram(gray, bins=256, range=(0, 255))
         return self._normalize_histogram(hist)
 
-    def _calculate_rgb(self, rgb: np.ndarray) -> Dict[str, np.ndarray]:
+    def _calculate_rgb(self, rgb: np.ndarray) -> dict[str, np.ndarray]:
         channels = {}
         for idx, key in enumerate(["r", "g", "b"]):
             hist, _ = np.histogram(rgb[..., idx], bins=256, range=(0, 255))

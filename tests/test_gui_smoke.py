@@ -13,7 +13,7 @@ class TestGUIImports:
 
     def test_import_gui_utils(self):
         """Test importing GUI utils modules."""
-        from gui.utils import AppSettings, ModelLoader, ImageProcessor
+        from gui.utils import AppSettings, ImageProcessor, ModelLoader
 
         assert AppSettings is not None
         assert ModelLoader is not None
@@ -21,7 +21,7 @@ class TestGUIImports:
 
     def test_import_gui_widgets(self):
         """Test importing GUI widgets."""
-        from gui.widgets import ImagePanel, EnhanceButton
+        from gui.widgets import EnhanceButton, ImagePanel
 
         assert ImagePanel is not None
         assert EnhanceButton is not None
@@ -66,7 +66,7 @@ class TestModuleDocstrings:
 
     def test_utils_docstrings(self):
         """Test that utils modules have docstrings."""
-        from gui.utils import model_loader, settings, image_processor
+        from gui.utils import image_processor, model_loader, settings
 
         assert model_loader.__doc__ is not None
         assert settings.__doc__ is not None
@@ -74,7 +74,7 @@ class TestModuleDocstrings:
 
     def test_widgets_docstrings(self):
         """Test that widget modules have docstrings."""
-        from gui.widgets import image_panel, enhance_button
+        from gui.widgets import enhance_button, image_panel
 
         assert image_panel.__doc__ is not None
         assert enhance_button.__doc__ is not None

@@ -8,14 +8,14 @@ Usage:
     python gui_app.py
 """
 
-import sys
 import os
+import sys
 
 # Set Keras backend before any imports
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
 
 from gui.main_window import MainWindow
 

@@ -14,33 +14,31 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import time
 from pathlib import Path
-from typing import Optional, Dict, List
+
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QAction, QActionGroup, QKeySequence
 from PyQt6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QMenuBar,
-    QMenu,
-    QStatusBar,
     QFileDialog,
+    QHBoxLayout,
     QLabel,
+    QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QAction, QKeySequence, QActionGroup
 
-from gui.widgets import ImagePanel, EnhanceButton, ComparisonGrid
-from gui.dialogs import ErrorDialog, PreferencesDialog, MethodSelectionDialog
+from gui.dialogs import ErrorDialog, MethodSelectionDialog, PreferencesDialog
 from gui.utils import (
-    ModelLoader,
-    ImageProcessor,
     AppSettings,
     EnhancementResult,
-    get_registry,
     EnhancementRunnerThread,
+    ImageProcessor,
+    ModelLoader,
+    get_registry,
 )
+from gui.widgets import ComparisonGrid, EnhanceButton, ImagePanel
 
 
 class EnhancementWorker(QThread):
@@ -113,20 +111,22 @@ class MainWindow(QMainWindow):
         self.enhancement_worker = None
 
         # Enhancement timing and results (future-proof for multi-method comparison)
-        self._enhancement_results: Dict[
+        self._enhancement_results: dict[
             str, EnhancementResult
         ] = {}  # Stores all enhancement results
-        self._enhancement_start_time: Optional[float] = (
+        self._enhancement_start_time: float | None = (
             None  # Track timing for current operation
         )
         self._current_enhancement_method: str = "Zero-DCE"  # Current method name
 
         # Comparison mode state
         self.comparison_mode = False
-        self.selected_methods: List[str] = []  # Methods selected for comparison
-        self.reference_image_path: Optional[str] = None  # Reference image path
-        self.comparison_runner: Optional[EnhancementRunnerThread] = None
-        self._comparison_progress_count: int = 0  # Track completed methods during comparison
+        self.selected_methods: list[str] = []  # Methods selected for comparison
+        self.reference_image_path: str | None = None  # Reference image path
+        self.comparison_runner: EnhancementRunnerThread | None = None
+        self._comparison_progress_count: int = (
+            0  # Track completed methods during comparison
+        )
 
         # Initialize UI
         self._init_ui()
@@ -796,7 +796,7 @@ class MainWindow(QMainWindow):
         about_text = """
         <h2>Zero-DCE Image Enhancement</h2>
         <p><b>Version:</b> 1.1.0</p>
-        <p>A GUI application for enhancing low-light images using the 
+        <p>A GUI application for enhancing low-light images using the
         Zero-Reference Deep Curve Estimation (Zero-DCE) method.</p>
         <p><b>Paper:</b> Zero-Reference Deep Curve Estimation for Low-Light Image Enhancement (CVPR 2020)</p>
         <p><b>Paper Authors:</b> Chunle Guo, Chongyi Li, et al.</p>
@@ -1028,20 +1028,20 @@ class MainWindow(QMainWindow):
 
     def _clear_comparison_state(self):
         """Clear comparison mode state and results.
-        
+
         This should be called when loading a new image to ensure
         comparison results from the previous image don't persist.
         """
         # Clear enhancement results
         self._enhancement_results.clear()
-        
+
         # Reset comparison progress counter
         self._comparison_progress_count = 0
-        
+
         # Clear comparison grid (clear results only, keep structure)
         if self.comparison_mode:
             self.comparison_grid.clear_results()
-        
+
         # Note: We intentionally do NOT clear selected_methods and reference_image_path
         # because users may want to use the same method selection and reference
         # for the next image. Only clear the actual results.
@@ -1175,7 +1175,7 @@ class MainWindow(QMainWindow):
         """Run comparison in background thread."""
         # Reset progress counter at start of new comparison
         self._comparison_progress_count = 0
-        
+
         # Create comparison runner thread
         self.comparison_runner = EnhancementRunnerThread(
             image=self.current_input_image,
@@ -1226,7 +1226,7 @@ class MainWindow(QMainWindow):
         """
         # Increment progress counter
         self._comparison_progress_count += 1
-        
+
         # Convert PIL image to QPixmap
         pixmap = ImageProcessor.pil_to_pixmap(result.image)
 
@@ -1238,7 +1238,7 @@ class MainWindow(QMainWindow):
 
         # Store result
         self._enhancement_results[method_key] = result
-        
+
         # Update status bar with progress
         total = len(self.selected_methods)
         registry = get_registry()
@@ -1256,10 +1256,10 @@ class MainWindow(QMainWindow):
         """
         # Increment progress counter (even for failed methods)
         self._comparison_progress_count += 1
-        
+
         # Update grid with error
         self.comparison_grid.set_method_error(method_key, error_message)
-        
+
         # Update status bar with progress
         total = len(self.selected_methods)
         registry = get_registry()

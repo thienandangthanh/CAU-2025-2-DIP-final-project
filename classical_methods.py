@@ -5,10 +5,9 @@ that can be used as baselines for comparison with Zero-DCE. All methods work
 on PIL Image objects and return enhanced PIL Images.
 """
 
-import numpy as np
 import cv2
+import numpy as np
 from PIL import Image, ImageOps
-from typing import Union, Tuple
 from retinex import msrcr
 
 
@@ -105,7 +104,7 @@ def enhance_with_gamma_correction(
 
 
 def enhance_with_msrcr(
-    image: Image.Image, sigmas: Tuple[float, float, float] = (25.0, 50.0, 100.0)
+    image: Image.Image, sigmas: tuple[float, float, float] = (25.0, 50.0, 100.0)
 ) -> Image.Image:
     """Enhance using Multi-Scale Retinex with Color Restoration (MSRCR).
 

@@ -6,14 +6,15 @@ Tests cover:
 - Settings are properly synced
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
+
+import pytest
 from PyQt6.QtCore import QSettings
 
 from gui.main_window import MainWindow
-from gui.utils.settings import AppSettings
 from gui.utils.model_loader import ModelLoader
+from gui.utils.settings import AppSettings
 
 
 @pytest.fixture

@@ -8,9 +8,10 @@ Tests application settings management including:
 - Performance settings
 """
 
-import pytest
 from pathlib import Path
-from PyQt6.QtCore import QSettings, QPoint, QSize
+
+import pytest
+from PyQt6.QtCore import QPoint, QSettings, QSize
 
 from gui.utils.settings import AppSettings
 

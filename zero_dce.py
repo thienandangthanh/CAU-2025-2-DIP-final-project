@@ -9,6 +9,19 @@ Accelerator: GPU
 Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 """
 
+import os
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
+from glob import glob
+
+import keras
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from keras import layers
+from PIL import Image, ImageOps
+
 """
 ## ⚠️ IMPORTANT NOTE - REFACTORED CODEBASE
 
@@ -103,21 +116,6 @@ images for training and 15 for testing. Each image pair in the dataset consists 
 low-light input image and its corresponding well-exposed reference image.
 """
 
-import os
-
-os.environ["KERAS_BACKEND"] = "tensorflow"
-
-import random
-import numpy as np
-from glob import glob
-from PIL import Image, ImageOps
-import matplotlib.pyplot as plt
-
-import keras
-from keras import layers
-
-import tensorflow as tf
-
 """shell
 wget https://huggingface.co/datasets/geekyrakshit/LoL-Dataset/resolve/main/lol_dataset.zip
 unzip -q lol_dataset.zip && rm lol_dataset.zip
@@ -146,7 +144,7 @@ def load_data(image_path):
 
 
 def data_generator(low_light_images):
-    dataset = tf.data.Dataset.from_tensor_slices((low_light_images))
+    dataset = tf.data.Dataset.from_tensor_slices(low_light_images)
     dataset = dataset.map(load_data, num_parallel_calls=tf.data.AUTOTUNE)
     dataset = dataset.batch(BATCH_SIZE, drop_remainder=True)
     return dataset
@@ -290,8 +288,8 @@ def illumination_smoothness_loss(x):
     w_x = tf.shape(x)[2]
     count_h = (tf.shape(x)[2] - 1) * tf.shape(x)[3]
     count_w = tf.shape(x)[2] * (tf.shape(x)[3] - 1)
-    h_tv = tf.reduce_sum(tf.square((x[:, 1:, :, :] - x[:, : h_x - 1, :, :])))
-    w_tv = tf.reduce_sum(tf.square((x[:, :, 1:, :] - x[:, :, : w_x - 1, :])))
+    h_tv = tf.reduce_sum(tf.square(x[:, 1:, :, :] - x[:, : h_x - 1, :, :]))
+    w_tv = tf.reduce_sum(tf.square(x[:, :, 1:, :] - x[:, :, : w_x - 1, :]))
     batch_size = tf.cast(batch_size, dtype=tf.float32)
     count_h = tf.cast(count_h, dtype=tf.float32)
     count_w = tf.cast(count_w, dtype=tf.float32)
@@ -476,7 +474,9 @@ class ZeroDCE(keras.Model):
         gradients = tape.gradient(
             losses["total_loss"], self.dce_model.trainable_weights
         )
-        self.optimizer.apply_gradients(zip(gradients, self.dce_model.trainable_weights))
+        self.optimizer.apply_gradients(
+            zip(gradients, self.dce_model.trainable_weights, strict=True)
+        )
 
         self.total_loss_tracker.update_state(losses["total_loss"])
         self.illumination_smoothness_loss_tracker.update_state(
@@ -539,7 +539,7 @@ def plot_result(item):
     plt.plot(history.history["val_" + item], label="val_" + item)
     plt.xlabel("Epochs")
     plt.ylabel(item)
-    plt.title("Train and Validation {} Over Epochs".format(item), fontsize=14)
+    plt.title(f"Train and Validation {item} Over Epochs", fontsize=14)
     plt.legend()
     plt.grid()
     plt.show()

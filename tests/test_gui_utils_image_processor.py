@@ -8,9 +8,10 @@ Tests image processing functionality including:
 - Image format conversions
 """
 
-import pytest
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pytest
 from PIL import Image
 
 from gui.utils.image_processor import ImageProcessor
