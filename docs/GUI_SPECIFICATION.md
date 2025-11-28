@@ -76,7 +76,7 @@ The main window stores and restores its geometry via `AppSettings`. Toggling com
 - **Model Info** displays filename, full path, and file size for the currently loaded weights. If auto-load-on-startup is enabled, `MainWindow` attempts to load `AppSettings.get_full_model_path()` when the window is created and reports missing files with an error dialog.
 
 #### Help Menu
-- **About** uses `QMessageBox.about` to show application version `1.0.0`, the Zero-DCE paper citation, and course authorship. Dedicated help pages and keyboard shortcut summaries are tracked for future work.
+- **About** uses `QMessageBox.about` to show application version `1.1.0`, the Zero-DCE paper citation, and course authorship. Dedicated help pages and keyboard shortcut summaries are tracked for future work.
 
 ### Display Modes
 

@@ -795,7 +795,7 @@ class MainWindow(QMainWindow):
         """Show about dialog."""
         about_text = """
         <h2>Zero-DCE Image Enhancement</h2>
-        <p><b>Version:</b> 1.0.0</p>
+        <p><b>Version:</b> 1.1.0</p>
         <p>A GUI application for enhancing low-light images using the 
         Zero-Reference Deep Curve Estimation (Zero-DCE) method.</p>
         <p><b>Paper:</b> Zero-Reference Deep Curve Estimation for Low-Light Image Enhancement (CVPR 2020)</p>
