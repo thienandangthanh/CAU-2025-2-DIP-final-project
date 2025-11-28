@@ -19,24 +19,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "black>=25.11.0",
     "pre-commit>=4.5.0",
     "ruff>=0.14.6",
 ]
-
-[tool.black]
-line-length = 88
-target-version = ["py313"]
-extend-exclude = '''
-/(
-  # directories
-  \.venv
-  | __pycache__
-  | \.git
-  | build
-  | dist
-)/
-'''
 
 [tool.ruff]
 line-length = 88
@@ -53,7 +38,7 @@ select = [
     "UP",  # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long (handled by black)
+    "E501",  # line too long (handled by ruff-format)
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
