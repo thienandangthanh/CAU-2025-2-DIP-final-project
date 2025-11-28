@@ -36,6 +36,8 @@ class AppSettings:
     DEFAULT_OUTPUT_FORMAT = "PNG"  # "PNG" or "JPEG"
     DEFAULT_AUTO_CLEAR_CACHE = True
     DEFAULT_DEBUG_LOGGING = False
+    DEFAULT_HISTOGRAM_OVERLAY_VISIBLE = False
+    DEFAULT_HISTOGRAM_TYPE = "grayscale"
 
     def __init__(self):
         """Initialize settings with organization and application name."""
@@ -232,6 +234,31 @@ class AppSettings:
             enabled: True to show info overlay
         """
         self.settings.setValue("display/show_info", enabled)
+
+    def get_histogram_overlay_visible(self) -> bool:
+        """Return whether histogram overlay should be shown by default."""
+        return self.settings.value(
+            "display/histogram_overlay_visible",
+            self.DEFAULT_HISTOGRAM_OVERLAY_VISIBLE,
+            type=bool,
+        )
+
+    def set_histogram_overlay_visible(self, enabled: bool) -> None:
+        """Persist histogram overlay visibility preference."""
+        self.settings.setValue("display/histogram_overlay_visible", enabled)
+
+    def get_histogram_type(self) -> str:
+        """Return preferred histogram type (rgb or grayscale)."""
+        return self.settings.value(
+            "display/histogram_type",
+            self.DEFAULT_HISTOGRAM_TYPE,
+        )
+
+    def set_histogram_type(self, histogram_type: str) -> None:
+        """Persist histogram type preference."""
+        if histogram_type not in {"rgb", "grayscale"}:
+            raise ValueError("Histogram type must be 'rgb' or 'grayscale'")
+        self.settings.setValue("display/histogram_type", histogram_type)
 
     # ==================== Performance Settings ====================
 

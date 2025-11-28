@@ -142,6 +142,20 @@ class TestImagePanelStates:
         # Hide overlay
         image_panel.set_info_overlay_visible(False)
 
+    def test_histogram_toggle(self, image_panel, sample_image_path):
+        """Test enabling and disabling histogram overlay."""
+        image_panel.set_image(sample_image_path)
+        image_panel.set_histogram_type("grayscale")
+        image_panel.set_histogram_enabled(True)
+        assert image_panel.histogram_visible is True
+
+        # Switch type while visible
+        image_panel.set_histogram_type("rgb")
+        assert image_panel.histogram_visible is True
+
+        image_panel.set_histogram_enabled(False)
+        assert image_panel.histogram_visible is False
+
 
 class TestImagePanelFileValidation:
     """Tests for file validation."""

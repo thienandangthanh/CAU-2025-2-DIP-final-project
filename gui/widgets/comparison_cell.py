@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QColor
 
+from .histogram_overlay import HistogramOverlay
+
 
 class ComparisonCell(QWidget):
     """Widget for displaying a single enhancement result in comparison mode.
@@ -105,6 +107,12 @@ class ComparisonCell(QWidget):
             """
         )
         layout.addWidget(self.image_label)
+
+        # Histogram overlay per cell (shares same implementation as ImagePanel)
+        self.histogram_overlay = HistogramOverlay(self.image_label)
+        self.histogram_overlay.hide()
+        self.histogram_visible = False
+        self.histogram_type = "grayscale"
         
         # Status/timing label
         self.status_label = QLabel()
@@ -134,6 +142,7 @@ class ComparisonCell(QWidget):
         
         self.current_pixmap = pixmap
         self._update_image_display()
+        self._refresh_histogram_overlay()
         
         # Update border style when image is loaded
         if not self.is_reference:
@@ -248,6 +257,7 @@ class ComparisonCell(QWidget):
         )
         
         self.image_label.setPixmap(scaled_pixmap)
+        self._refresh_histogram_overlay()
     
     def clear(self):
         """Clear the cell and return to initial state."""
@@ -265,6 +275,7 @@ class ComparisonCell(QWidget):
             """
         )
         self._update_status_display()
+        self.histogram_overlay.hide()
     
     def mousePressEvent(self, event):
         """Handle mouse press events for cell click.
@@ -284,3 +295,33 @@ class ComparisonCell(QWidget):
         super().resizeEvent(event)
         if self.current_pixmap is not None:
             self._update_image_display()
+
+    def set_histogram_enabled(self, enabled: bool):
+        """Enable or disable histogram overlay for this cell."""
+        self.histogram_visible = enabled
+        if not enabled:
+            self.histogram_overlay.hide()
+            return
+        self._refresh_histogram_overlay()
+
+    def set_histogram_type(self, histogram_type: str):
+        """Set histogram type (RGB or Grayscale)."""
+        if histogram_type not in {"rgb", "grayscale"}:
+            raise ValueError("Histogram type must be 'rgb' or 'grayscale'")
+        self.histogram_type = histogram_type
+        self.histogram_overlay.set_histogram_type(histogram_type)
+        self._refresh_histogram_overlay()
+
+    def _refresh_histogram_overlay(self):
+        """Update histogram overlay visibility and data."""
+        if not self.histogram_visible or self.current_pixmap is None:
+            self.histogram_overlay.hide()
+            return
+
+        self.histogram_overlay.set_histogram_type(self.histogram_type)
+        self.histogram_overlay.set_pixmap(self.current_pixmap)
+        if not self.histogram_overlay.has_custom_position():
+            self.histogram_overlay.move_to_default()
+        else:
+            self.histogram_overlay.ensure_within_parent()
+        self.histogram_overlay.show()
