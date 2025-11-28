@@ -30,6 +30,12 @@ zero-dce-keras/
 ├── compare.py                  # Inference and comparison tool
 ├── classical_methods.py        # Classical enhancement methods
 ├── zero_dce.py                 # Original monolithic implementation (reference)
+├── gui_app.py                  # PyQt6 GUI application entry point
+├── gui/                        # GUI components
+│   ├── main_window.py          # Main application window
+│   ├── widgets/                # Custom widgets (comparison grid, cells, etc.)
+│   ├── dialogs/                # Dialog windows (preferences, method selection)
+│   └── utils/                  # GUI utilities (enhancement runner, methods, etc.)
 ├── test_*.py                   # Test suites for each module
 │   ├── test_dataset.py
 │   ├── test_loss.py
@@ -37,6 +43,7 @@ zero-dce-keras/
 │   ├── test_train.py
 │   ├── test_compare.py
 │   └── test_classical_methods.py
+├── tests/                      # Additional test modules (GUI tests)
 ├── lol_dataset/                # LOL Dataset (485 train + 15 test images)
 │   ├── our485/                 # Training set (485 pairs)
 │   │   ├── low/                # Training low-light images
@@ -54,8 +61,11 @@ zero-dce-keras/
 │   └── exposure_loss.png
 ├── outputs/                    # Generated comparison outputs
 ├── docs/                       # Documentation
-├── pyproject.toml              # Project dependencies (uv)
+├── pyproject.toml              # Project dependencies and tool configuration
 ├── uv.lock                     # Lock file for dependencies
+├── pytest.ini                  # Pytest configuration
+├── .pre-commit-config.yaml     # Pre-commit hooks configuration
+├── .python-version             # Python version specification
 ├── .gitignore                  # Git ignore rules
 ├── AGENTS.md                   # Instructions for AI coding agents
 ├── REFACTOR_PLAN.md            # Detailed refactoring roadmap
@@ -103,9 +113,65 @@ source .venv/bin/activate.fish
 
 4. **Install dependencies**
 ```bash
-# Using uv
+# Using uv (installs both regular and dev dependencies)
 uv sync
 ```
+
+### Development Setup
+
+For developers who want to contribute or modify the code, additional setup is required to ensure code quality and consistency.
+
+#### Code Quality Tools
+
+This project uses the following tools to maintain code quality:
+- **Ruff** - Fast Python linter and formatter (replaces flake8, isort, black)
+- **Pre-commit** - Git hooks framework for automatic code quality checks
+
+#### Installing Pre-commit Hooks
+
+After installing dependencies with `uv sync`, install the pre-commit hooks:
+
+```bash
+uv run pre-commit install
+```
+
+This will automatically run code quality checks before each commit:
+- Trailing whitespace removal
+- End-of-file fixes
+- YAML/JSON/TOML validation
+- Large file detection
+- Merge conflict detection
+- Debug statement detection
+- Ruff linting with auto-fix
+- Ruff formatting
+
+#### Running Checks Manually
+
+To manually run all pre-commit hooks on all files:
+
+```bash
+uv run pre-commit run --all-files
+```
+
+To run only Ruff linter:
+
+```bash
+uv run ruff check .
+```
+
+To run only Ruff formatter:
+
+```bash
+uv run ruff format .
+```
+
+#### Configuration Files
+
+- `.pre-commit-config.yaml` - Pre-commit hooks configuration
+- `pyproject.toml` - Tool configuration (Ruff settings, project metadata)
+- `pytest.ini` - Pytest configuration
+
+**Note:** Pre-commit hooks will automatically fix most formatting issues. If there are linting errors that cannot be auto-fixed, the commit will be blocked until you fix them manually.
 
 ### Download LOL Dataset
 
@@ -468,6 +534,17 @@ This project is for educational purposes as part of a graduate Digital Image Pro
 - Check dataset is properly loaded
 - Verify images are normalized to [0, 1]
 
+**Pre-commit hooks not running:**
+- Verify hooks are installed: `uv run pre-commit install`
+- Check `.git/hooks/pre-commit` exists and is executable
+- Try running manually: `uv run pre-commit run --all-files`
+
+**Pre-commit hooks blocking commit:**
+- Review the error messages to see which checks failed
+- Most formatting issues are auto-fixed; run `git add .` to stage the fixes
+- For linting errors that can't be auto-fixed, manually fix the code
+- Run `uv run pre-commit run --all-files` to verify all checks pass
+
 ## Contributing
 
 This is a course project, but suggestions and improvements are welcome! Please feel free to:
@@ -475,6 +552,15 @@ This is a course project, but suggestions and improvements are welcome! Please f
 - Suggest enhancements
 - Share your training results
 - Contribute improvements to the code
+
+### Before Contributing
+
+1. **Install dependencies:** Run `uv sync` to install all dependencies
+2. **Install pre-commit hooks:** Run `uv run pre-commit install` to set up automatic code quality checks
+3. **Run tests:** Ensure all tests pass before submitting changes
+4. **Follow code style:** The pre-commit hooks will automatically format your code using Ruff
+
+All commits will be automatically checked for code quality. Make sure to fix any linting errors before committing.
 
 ## Contact
 
