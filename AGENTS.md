@@ -410,10 +410,10 @@ class TestFeatureName:
         """Test that something works as expected."""
         # Arrange
         loader = ModelLoader()
-        
+
         # Act
         result = loader.some_method()
-        
+
         # Assert
         assert result is not None
 
@@ -421,7 +421,7 @@ class TestFeatureName:
     def test_error_handling(self):
         """Test that errors are handled correctly."""
         loader = ModelLoader()
-        
+
         with pytest.raises(ValueError):
             loader.invalid_operation()
 ```
@@ -486,7 +486,7 @@ def test_requires_weights():
     weights_path = "./weights/zero_dce.weights.h5"
     if not Path(weights_path).exists():
         pytest.skip("Model weights not found")
-    
+
     # Test code here
 ```
 
@@ -494,16 +494,16 @@ def test_requires_weights():
 ```python
 class TestModelLoading:
     """All tests related to loading models."""
-    
+
     def test_load_valid_model(self):
         pass
-    
+
     def test_load_invalid_model(self):
         pass
 
 class TestModelInference:
     """All tests related to model inference."""
-    
+
     def test_inference_on_image(self):
         pass
 ```
@@ -512,15 +512,15 @@ class TestModelInference:
 ```python
 def test_load_model_raises_file_not_found_when_weights_missing(self):
     """Test that load_model raises FileNotFoundError for missing weights file.
-    
+
     This ensures the user gets a clear error message instead of a cryptic
     exception when the weights file doesn't exist.
     """
     loader = ModelLoader()
-    
+
     with pytest.raises(FileNotFoundError) as exc_info:
         loader.load_model("/nonexistent/path.h5")
-    
+
     assert "not found" in str(exc_info.value).lower()
 ```
 
@@ -629,8 +629,8 @@ git commit -m "Refactor: Implement <module_name> - <description>"
 
 ---
 
-**Last Updated:** 2025-10-28  
-**Maintained By:** Graduate students in Digital Image Processing course  
+**Last Updated:** 2025-10-28
+**Maintained By:** Graduate students in Digital Image Processing course
 **For Questions:** Refer to `REFACTOR_PLAN.md` for detailed implementation steps
 
 ## Quick Reference for AI Agents

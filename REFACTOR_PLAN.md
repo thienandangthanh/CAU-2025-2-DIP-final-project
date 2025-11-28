@@ -56,11 +56,11 @@ DEFAULT_MAX_TRAIN_IMAGES = 400
 
 def load_data(image_path: str, image_size: int = DEFAULT_IMAGE_SIZE) -> tf.Tensor:
     """Load and preprocess a single image.
-    
+
     Args:
         image_path: Path to the image file
         image_size: Target size for resizing (height and width)
-    
+
     Returns:
         Preprocessed image tensor normalized to [0, 1]
     """
@@ -73,12 +73,12 @@ def data_generator(
     image_size: int = DEFAULT_IMAGE_SIZE
 ) -> tf.data.Dataset:
     """Create TensorFlow dataset from image paths.
-    
+
     Args:
         low_light_images: List of image file paths
         batch_size: Batch size for training
         image_size: Target image size
-    
+
     Returns:
         TensorFlow Dataset object
     """
@@ -92,13 +92,13 @@ def get_dataset(
     image_size: int = DEFAULT_IMAGE_SIZE
 ) -> Tuple[tf.data.Dataset, tf.data.Dataset, list]:
     """Load and prepare train, validation, and test datasets.
-    
+
     Args:
         dataset_path: Root path to LOL dataset
         max_train_images: Maximum number of images for training
         batch_size: Batch size for datasets
         image_size: Target image size
-    
+
     Returns:
         Tuple of (train_dataset, val_dataset, test_image_paths)
     """
@@ -167,8 +167,8 @@ git commit -m "Refactor: Implement dataset.py - Data loading and preprocessing
 
 ## Step 2: Implement `loss.py`
 
-**Status:** ✅ Complete (2025-10-25)  
-**Estimated Time:** 20-30 minutes  
+**Status:** ✅ Complete (2025-10-25)
+**Estimated Time:** 20-30 minutes
 **Dependencies:** None (only TensorFlow/Keras)
 
 ### Components to Extract from `zero_dce.py`
@@ -189,13 +189,13 @@ import keras
 
 def color_constancy_loss(x: tf.Tensor) -> tf.Tensor:
     """Compute color constancy loss.
-    
+
     Measures the deviation between average values of RGB channels
     to correct potential color shifts in enhanced images.
-    
+
     Args:
         x: Enhanced image tensor of shape (batch, height, width, 3)
-    
+
     Returns:
         Color constancy loss value
     """
@@ -204,14 +204,14 @@ def color_constancy_loss(x: tf.Tensor) -> tf.Tensor:
 
 def exposure_loss(x: tf.Tensor, mean_val: float = 0.6) -> tf.Tensor:
     """Compute exposure control loss.
-    
+
     Measures distance between average intensity of local regions
     and the target well-exposedness level.
-    
+
     Args:
         x: Enhanced image tensor of shape (batch, height, width, 3)
         mean_val: Target exposure level (default: 0.6)
-    
+
     Returns:
         Exposure control loss value
     """
@@ -220,13 +220,13 @@ def exposure_loss(x: tf.Tensor, mean_val: float = 0.6) -> tf.Tensor:
 
 def illumination_smoothness_loss(x: tf.Tensor) -> tf.Tensor:
     """Compute illumination smoothness loss.
-    
+
     Preserves monotonicity between neighboring pixels by minimizing
     total variation in curve parameter maps.
-    
+
     Args:
         x: Curve parameter maps of shape (batch, height, width, channels)
-    
+
     Returns:
         Illumination smoothness loss value
     """
@@ -235,15 +235,15 @@ def illumination_smoothness_loss(x: tf.Tensor) -> tf.Tensor:
 
 class SpatialConsistencyLoss(keras.losses.Loss):
     """Spatial consistency loss.
-    
+
     Encourages spatial coherence by preserving contrast between
     neighboring regions across input and enhanced images.
     """
-    
+
     def __init__(self, **kwargs):
         # Implementation from lines 251-265
         pass
-    
+
     def call(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
         # Implementation from lines 267-325
         pass
@@ -352,12 +352,12 @@ from loss import (
 
 def build_dce_net() -> keras.Model:
     """Build DCE-Net architecture.
-    
+
     7-layer CNN with symmetrical skip connections:
     - Conv1-4: 32 filters, 3x3, ReLU
     - Skip connections at layers 4, 5, 6
     - Conv7: 24 filters (8 iterations × 3 channels), Tanh
-    
+
     Returns:
         Keras Model that maps input images to curve parameter maps
     """
@@ -366,14 +366,14 @@ def build_dce_net() -> keras.Model:
 
 def get_enhanced_image(data: tf.Tensor, output: tf.Tensor) -> tf.Tensor:
     """Apply curve enhancement iteratively.
-    
+
     Applies 8 iterations of the learned curves:
         x_{n+1} = x_n + r_n * (x_n^2 - x_n)
-    
+
     Args:
         data: Input low-light image (batch, h, w, 3)
         output: Curve parameters (batch, h, w, 24)
-    
+
     Returns:
         Enhanced image (batch, h, w, 3)
     """
@@ -383,43 +383,43 @@ def get_enhanced_image(data: tf.Tensor, output: tf.Tensor) -> tf.Tensor:
 
 class ZeroDCE(keras.Model):
     """Zero-DCE training model wrapper.
-    
+
     Combines DCE-Net with unsupervised loss functions for training.
     """
-    
+
     def __init__(self, **kwargs):
         # Implementation from lines 336-338
         pass
-    
+
     def compile(self, learning_rate, **kwargs):
         # Implementation from lines 340-354
         pass
-    
+
     @property
     def metrics(self):
         # Implementation from lines 356-364
         pass
-    
+
     def call(self, data):
         # Implementation from lines 385-387
         pass
-    
+
     def compute_losses(self, data, output):
         # Implementation from lines 389-410
         pass
-    
+
     def train_step(self, data):
         # Implementation from lines 412-432
         pass
-    
+
     def test_step(self, data):
         # Implementation from lines 434-448
         pass
-    
+
     def save_weights(self, filepath, overwrite=True, save_format=None, options=None):
         # Implementation from lines 450-457
         pass
-    
+
     def load_weights(self, filepath, by_name=False, skip_mismatch=False, options=None):
         # Implementation from lines 459-466
         pass
@@ -480,7 +480,7 @@ DCE-Net Architecture:
   - Total parameters: 79,416 (310.22 KB)
   - Input shape: (None, None, None, 3)
   - Output shape: (None, None, None, 24)
-  
+
 Loss computation:
   - total_loss: 1875.081543
   - illumination_smoothness_loss: 1874.856201
@@ -490,7 +490,7 @@ Loss computation:
 
 Weight save/load:
   - Max difference between outputs: 0.0000000000
-  
+
 Variable image sizes:
   - ✅ 128×128, 256×256, 512×512 all work correctly
 ```
@@ -514,7 +514,7 @@ git commit -m "Refactor: Implement model.py - DCE-Net and ZeroDCE model
 ## Step 4: Implement `train.py`
 
 **Status:** ✅ Complete (2025-10-25)
-**Estimated Time:** 30-40 minutes  
+**Estimated Time:** 30-40 minutes
 **Dependencies:** Requires `dataset.py`, `model.py`, `loss.py`
 
 ### Components to Extract from `zero_dce.py`
@@ -541,7 +541,7 @@ from model import ZeroDCE
 
 def plot_training_history(history, save_dir: str = "./training_plots"):
     """Plot and save training history curves.
-    
+
     Args:
         history: Keras History object from model.fit()
         save_dir: Directory to save plot images
@@ -553,9 +553,9 @@ def plot_training_history(history, save_dir: str = "./training_plots"):
         "color_constancy_loss",
         "exposure_loss"
     ]
-    
+
     Path(save_dir).mkdir(exist_ok=True)
-    
+
     for metric in metrics:
         plt.figure(figsize=(10, 6))
         plt.plot(history.history[metric], label=metric)
@@ -567,14 +567,14 @@ def plot_training_history(history, save_dir: str = "./training_plots"):
         plt.grid()
         plt.savefig(f"{save_dir}/{metric}.png")
         plt.close()
-    
+
     print(f"Training plots saved to {save_dir}/")
 
 def main():
     parser = argparse.ArgumentParser(
         description="Train Zero-DCE model for low-light image enhancement"
     )
-    
+
     # Dataset arguments
     parser.add_argument(
         "--dataset-path",
@@ -588,7 +588,7 @@ def main():
         default=400,
         help="Maximum number of images for training"
     )
-    
+
     # Training arguments
     parser.add_argument(
         "--epochs",
@@ -614,7 +614,7 @@ def main():
         default=256,
         help="Image size (height and width)"
     )
-    
+
     # Output arguments
     parser.add_argument(
         "--save-path",
@@ -628,12 +628,12 @@ def main():
         default="./training_plots",
         help="Directory to save training plots"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Create output directories
     Path(args.save_path).parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Load datasets
     print("Loading datasets...")
     train_dataset, val_dataset, _ = get_dataset(
@@ -642,15 +642,15 @@ def main():
         batch_size=args.batch_size,
         image_size=args.image_size
     )
-    
+
     print(f"Train Dataset: {train_dataset}")
     print(f"Validation Dataset: {val_dataset}")
-    
+
     # Build and compile model
     print("\nBuilding Zero-DCE model...")
     zero_dce_model = ZeroDCE()
     zero_dce_model.compile(learning_rate=args.learning_rate)
-    
+
     # Train model
     print(f"\nTraining for {args.epochs} epochs...")
     history = zero_dce_model.fit(
@@ -658,15 +658,15 @@ def main():
         validation_data=val_dataset,
         epochs=args.epochs
     )
-    
+
     # Save model weights
     print(f"\nSaving model weights to {args.save_path}...")
     zero_dce_model.save_weights(args.save_path)
-    
+
     # Plot training history
     print("\nGenerating training plots...")
     plot_training_history(history, args.plot_dir)
-    
+
     print("\n✅ Training completed successfully!")
     print(f"   Weights saved: {args.save_path}")
     print(f"   Plots saved: {args.plot_dir}/")
@@ -744,7 +744,7 @@ git commit -m "Refactor: Implement train.py - Training script with CLI
 ## Step 5: Implement `compare.py`
 
 **Status:** ✅ Complete (2025-10-25)
-**Estimated Time:** 40-50 minutes  
+**Estimated Time:** 40-50 minutes
 **Dependencies:** Requires `model.py`
 
 ### Components to Extract from `zero_dce.py`
@@ -782,10 +782,10 @@ from model import ZeroDCE
 
 def load_model_for_inference(weights_path: str) -> ZeroDCE:
     """Load trained Zero-DCE model for inference.
-    
+
     Args:
         weights_path: Path to saved model weights (.h5 file)
-    
+
     Returns:
         Loaded ZeroDCE model
     """
@@ -795,11 +795,11 @@ def load_model_for_inference(weights_path: str) -> ZeroDCE:
 
 def enhance_with_zero_dce(image: Image.Image, model: ZeroDCE) -> Image.Image:
     """Enhance image using Zero-DCE model.
-    
+
     Args:
         image: PIL Image (RGB)
         model: Trained ZeroDCE model
-    
+
     Returns:
         Enhanced PIL Image
     """
@@ -842,7 +842,7 @@ def compare_methods(
     save_individual: bool = False
 ):
     """Compare enhancement methods on a single image.
-    
+
     Args:
         input_path: Path to input low-light image
         weights_path: Path to trained Zero-DCE weights
@@ -852,17 +852,17 @@ def compare_methods(
     """
     # Load original image
     original_image = Image.open(input_path)
-    
+
     # Default methods if not specified
     if methods is None:
         methods = ["zero-dce", "autocontrast", "histogram-eq", "clahe", "gamma"]
-    
+
     # Load Zero-DCE model if needed
     model = None
     if "zero-dce" in methods:
         print(f"Loading Zero-DCE model from {weights_path}...")
         model = load_model_for_inference(weights_path)
-    
+
     # Apply enhancement methods
     results = {"original": original_image}
     method_map = {
@@ -872,28 +872,28 @@ def compare_methods(
         "clahe": ("CLAHE", lambda: enhance_with_clahe(original_image)),
         "gamma": ("Gamma Correction", lambda: enhance_with_gamma_correction(original_image))
     }
-    
+
     print("Applying enhancement methods...")
     for method_key in methods:
         if method_key in method_map:
             method_name, enhance_fn = method_map[method_key]
             print(f"  - {method_name}")
             results[method_name] = enhance_fn()
-    
+
     # Create comparison plot
     num_images = len(results)
     fig, axes = plt.subplots(1, num_images, figsize=(5 * num_images, 5))
-    
+
     if num_images == 1:
         axes = [axes]
-    
+
     for ax, (title, img) in zip(axes, results.items()):
         ax.imshow(img)
         ax.set_title(title, fontsize=12)
         ax.axis("off")
-    
+
     plt.tight_layout()
-    
+
     # Save or show
     if output_path:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -901,26 +901,26 @@ def compare_methods(
         print(f"\n✅ Comparison saved to {output_path}")
     else:
         plt.show()
-    
+
     plt.close()
-    
+
     # Save individual images if requested
     if save_individual and output_path:
         output_dir = Path(output_path).parent / "individual"
         output_dir.mkdir(exist_ok=True)
-        
+
         for title, img in results.items():
             if title != "original":
                 save_path = output_dir / f"{Path(input_path).stem}_{title.lower().replace(' ', '_')}.png"
                 img.save(save_path)
-        
+
         print(f"Individual images saved to {output_dir}/")
 
 def main():
     parser = argparse.ArgumentParser(
         description="Compare Zero-DCE with classical image enhancement methods"
     )
-    
+
     parser.add_argument(
         "-i", "--input",
         type=str,
@@ -952,18 +952,18 @@ def main():
         action="store_true",
         help="Save individual enhanced images"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Validate inputs
     if not Path(args.input).exists():
         print(f"❌ Error: Input image not found: {args.input}")
         return
-    
+
     if not Path(args.weights).exists():
         print(f"❌ Error: Model weights not found: {args.weights}")
         return
-    
+
     # Run comparison
     compare_methods(
         input_path=args.input,
@@ -1158,7 +1158,7 @@ git commit -m "Refactor: Extract classical methods into separate module
 ## Step 6: Update Documentation
 
 **Status:** ✅ Complete (2025-10-25)
-**Estimated Time:** 15-20 minutes  
+**Estimated Time:** 15-20 minutes
 **Dependencies:** All previous steps completed
 
 ### Tasks

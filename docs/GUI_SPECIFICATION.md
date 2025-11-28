@@ -1,7 +1,7 @@
 # Zero-DCE GUI Application - Feature Specification
 
-> **Version:** 1.1.0  
-> **Last Updated:** 2025-11-28  
+> **Version:** 1.1.0
+> **Last Updated:** 2025-11-28
 > **Status:** Comparison grid and histogram overlay shipped; export tooling, advanced preferences, and expanded comparison views remain in backlog.
 
 ## Overview
@@ -147,7 +147,7 @@ Both panels expose histogram overlays and info overlays controlled by preference
 
 ## Preferences Dialog
 
-- **General Tab:** 
+- **General Tab:**
   - *Model settings:* weights directory selector and an auto-load checkbox.
   - *Display settings:* default zoom (Fit or Actual), synchronized zoom toggle (future use), info overlay visibility, histogram overlay toggle, and histogram type picker.
   - *Performance settings:* GPU mode (Auto/Enable/Disable) with live TensorFlow device detection feedback, and maximum image dimension options (2048, 4096 default, 8192, Unlimited). Choosing Unlimited shows a warning label.
