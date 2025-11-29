@@ -78,10 +78,14 @@ zero-dce-keras/
 
 - [Python 3.13+](https://www.python.org/downloads/)
 - [uv - Python project and package manager](https://docs.astral.sh/uv/getting-started/installation/)
-- CUDA-capable GPU (recommended for training)
+- **For Linux/macOS:**
+  - CUDA-capable GPU (recommended for training)
   - [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
   - [NVIDIA driver](https://www.nvidia.com/en-us/drivers/)
-- 4GB+ GPU memory for training
+  - 4GB+ GPU memory for training
+- **For Windows users:**
+  - **Required:** [WSL2 (Windows Subsystem for Linux)](#windows-users-wsl2-required)
+  - Native Windows is **not supported** due to OpenCV DLL issues and lack of TensorFlow GPU support
 
 ### Setup
 
@@ -116,6 +120,78 @@ source .venv/bin/activate.fish
 # Using uv (installs both regular and dev dependencies)
 uv sync
 ```
+
+### Windows Users: WSL2 (Required)
+
+**Windows developers must use WSL2.** Native Windows is not supported due to:
+- ❌ OpenCV DLL loading issues
+- ❌ TensorFlow 2.11+ has no native GPU support (CPU-only)
+- ❌ Python package compatibility problems
+
+**WSL2 provides:**
+- ✅ Native Linux environment with full CUDA GPU support
+- ✅ No OpenCV DLL issues
+- ✅ Full compatibility with all Python packages
+- ✅ Fast GPU-accelerated training
+- ✅ Same development experience as Linux/macOS
+
+#### Installing WSL2
+
+1. **Install WSL2** (requires Windows 10 version 2004+ or Windows 11)
+   ```powershell
+   # Run in PowerShell as Administrator
+   wsl --install
+   ```
+   This will install Ubuntu by default. Restart your computer when prompted.
+
+2. **Install NVIDIA CUDA on WSL2** (for GPU support)
+   - Install [NVIDIA GPU Driver for WSL](https://developer.nvidia.com/cuda/wsl) on Windows (NOT inside WSL)
+   - CUDA toolkit will be available automatically inside WSL2
+   - Verify GPU is accessible in WSL:
+     ```bash
+     nvidia-smi
+     ```
+
+3. **Setup the project in WSL2**
+   ```bash
+   # Open WSL2 Ubuntu terminal
+   cd /mnt/c/path/to/your/project  # or clone from git
+
+   # Install uv
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+
+   # Follow the regular Linux setup instructions above
+   uv venv
+   source .venv/bin/activate
+   uv sync
+   ```
+
+4. **Run the application**
+   ```bash
+   uv run python gui_app.py
+   ```
+   Note: GUI applications require an X server on Windows. See [Running GUI apps](#running-gui-apps-in-wsl2) below.
+
+#### Running GUI Apps in WSL2
+
+For the PyQt6 GUI application, you have two options:
+
+**Option 1: Windows 11 (Built-in WSLg support)**
+- Windows 11 has built-in GUI support (WSLg)
+- GUI apps work out of the box, no additional setup needed
+
+**Option 2: Windows 10 (Requires X Server)**
+1. Install [VcXsrv](https://sourceforge.net/projects/vcxsrv/) or [X410](https://x410.dev/) on Windows
+2. Start the X server with "Disable access control" option
+3. In WSL2, set the DISPLAY variable:
+   ```bash
+   export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
+   ```
+4. Run the application: `uv run python gui_app.py`
+
+**Option 3: Use CLI tools only**
+- For training and inference, you don't need the GUI
+- Use `train.py` and `compare.py` command-line scripts instead
 
 ### Development Setup
 
@@ -544,6 +620,34 @@ This project is for educational purposes as part of a graduate Digital Image Pro
 - Most formatting issues are auto-fixed; run `git add .` to stage the fixes
 - For linting errors that can't be auto-fixed, manually fix the code
 - Run `uv run pre-commit run --all-files` to verify all checks pass
+
+### Windows-Specific Issues
+
+**Native Windows is not supported.** If you're on Windows, use WSL2 as described in the [Windows Users: WSL2 (Required)](#windows-users-wsl2-required) section.
+
+**WSL2-specific issues:**
+
+**WSL2 installation fails:**
+- Ensure Windows 10 version 2004+ or Windows 11
+- Run PowerShell as Administrator
+- Enable virtualization in BIOS if needed
+
+**GPU not detected in WSL2:**
+- Install [NVIDIA GPU Driver for WSL](https://developer.nvidia.com/cuda/wsl) on Windows host
+- Verify with `nvidia-smi` inside WSL2
+- Do NOT install CUDA toolkit inside WSL2 - it's included automatically
+
+**GUI not working in WSL2:**
+- **Windows 11:** WSLg provides built-in GUI support, should work out of the box
+- **Windows 10:** Install X server (VcXsrv or X410) and set DISPLAY variable:
+  ```bash
+  export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}):0
+  ```
+- **Alternative:** Use CLI tools (`train.py`, `compare.py`) instead of GUI app
+
+**Slow file I/O in WSL2:**
+- Keep your project files in WSL2 filesystem (`/home/user/...`), not Windows filesystem (`/mnt/c/...`)
+- Clone the repository inside WSL2 for best performance
 
 ## Contributing
 
