@@ -19,6 +19,7 @@ import tensorflow as tf
 from PIL import Image
 
 from classical_methods import CLASSICAL_METHODS
+from layout_utils import calculate_optimal_grid_layout
 from model import ZeroDCE
 
 
@@ -148,18 +149,32 @@ def compare_methods(
         else:
             print(f"  ⚠️  Warning: Unknown method '{method_key}', skipping...")
 
-    # Create comparison plot
+    # Create comparison plot with auto-adjusting grid layout
     num_images = len(results)
-    fig, axes = plt.subplots(1, num_images, figsize=(5 * num_images, 5))
+    nrows, ncols = calculate_optimal_grid_layout(num_images)
 
-    # Handle single subplot case
+    # Calculate figure size based on grid dimensions
+    # Use 5 inches per image, adjust for aspect ratio
+    fig_width = ncols * 5
+    fig_height = nrows * 5
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(fig_width, fig_height))
+
+    # Flatten axes array for easier iteration
     if num_images == 1:
         axes = [axes]
+    else:
+        axes = axes.flatten() if nrows > 1 or ncols > 1 else [axes]
 
-    for ax, (title, img) in zip(axes, results.items(), strict=True):
-        ax.imshow(img)
-        ax.set_title(title, fontsize=14, fontweight="bold")
-        ax.axis("off")
+    # Plot images in grid
+    for idx, (title, img) in enumerate(results.items()):
+        axes[idx].imshow(img)
+        axes[idx].set_title(title, fontsize=14, fontweight="bold")
+        axes[idx].axis("off")
+
+    # Hide unused subplots (if grid has more slots than images)
+    for idx in range(num_images, len(axes)):
+        axes[idx].axis("off")
 
     plt.tight_layout()
 

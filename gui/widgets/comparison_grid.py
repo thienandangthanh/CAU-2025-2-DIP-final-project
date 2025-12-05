@@ -16,6 +16,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from layout_utils import calculate_optimal_columns
+
 from .comparison_cell import ComparisonCell
 
 
@@ -159,40 +161,10 @@ class ComparisonGrid(QWidget):
 
         # Calculate optimal column count based on total cells
         total_cells = len(self.cells)
-        self.columns = self._calculate_optimal_columns(total_cells)
+        self.columns = calculate_optimal_columns(total_cells)
 
         # Arrange cells in grid
         self._arrange_grid()
-
-    def _calculate_optimal_columns(self, total_cells: int) -> int:
-        """Calculate optimal number of columns based on cell count.
-
-        Args:
-            total_cells: Total number of cells to display
-
-        Returns:
-            Optimal number of columns (1-4)
-
-        Layout strategy:
-        - 1 cell: 1 column
-        - 2 cells: 2 columns (1x2 grid)
-        - 3 cells: 3 columns (1x3 grid)
-        - 4 cells: 2 columns (2x2 grid)
-        - 5-6 cells: 3 columns (2x3 grid)
-        - 7+ cells: 4 columns (multiple rows)
-        """
-        if total_cells <= 1:
-            return 1
-        elif total_cells == 2:
-            return 2
-        elif total_cells == 3:
-            return 3
-        elif total_cells == 4:
-            return 2  # 2x2 grid
-        elif total_cells <= 6:
-            return 3  # 2x3 or 3x3 grid
-        else:
-            return 4  # 4+ columns for many cells
 
     def _clear_grid(self):
         """Clear all cells from the grid."""
