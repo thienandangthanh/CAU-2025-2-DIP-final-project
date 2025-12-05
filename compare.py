@@ -74,6 +74,7 @@ def compare_methods(
     methods: list = None,
     save_individual: bool = False,
     reference_path: str = None,
+    columns: int = None,
 ):
     """Compare enhancement methods on a single image.
 
@@ -89,6 +90,7 @@ def compare_methods(
         methods: List of methods to compare (default: all methods)
         save_individual: Whether to save individual enhanced images (default: False)
         reference_path: Path to reference (high-light) image (optional)
+        columns: Number of columns in grid layout (default: None, auto-calculate)
     """
     # Load original image
     print(f"Loading image: {input_path}")
@@ -149,9 +151,16 @@ def compare_methods(
         else:
             print(f"  ⚠️  Warning: Unknown method '{method_key}', skipping...")
 
-    # Create comparison plot with auto-adjusting grid layout
+    # Create comparison plot with auto-adjusting or user-specified grid layout
     num_images = len(results)
-    nrows, ncols = calculate_optimal_grid_layout(num_images)
+
+    if columns is None:
+        # Auto-calculate optimal grid layout
+        nrows, ncols = calculate_optimal_grid_layout(num_images)
+    else:
+        # Use user-specified column count
+        ncols = columns
+        nrows = (num_images + ncols - 1) // ncols  # Ceiling division
 
     # Calculate figure size based on grid dimensions
     # Use 5 inches per image, adjust for aspect ratio
@@ -213,7 +222,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Compare all methods
+  # Compare all methods (auto-calculate grid layout)
   python compare.py -i input.jpg -w weights.h5 -o comparison.png
 
   # Compare with reference (ground truth) image
@@ -221,6 +230,9 @@ Examples:
 
   # Compare specific methods only
   python compare.py -i input.jpg -w weights.h5 --methods zero-dce autocontrast
+
+  # Use custom grid layout (3 columns)
+  python compare.py -i input.jpg -w weights.h5 -o output.png --columns 3
 
   # Save individual enhanced images
   python compare.py -i input.jpg -w weights.h5 -o output.png --save-individual
@@ -264,8 +276,20 @@ Examples:
         default=None,
         help="Path to reference (well-exposed) image for comparison (optional)",
     )
+    parser.add_argument(
+        "-c",
+        "--columns",
+        type=int,
+        default=None,
+        help="Number of columns in grid layout (default: auto-calculate optimal layout)",
+    )
 
     args = parser.parse_args()
+
+    # Validate columns argument
+    if args.columns is not None and args.columns < 1:
+        print("❌ Error: Number of columns must be at least 1")
+        return 1
 
     # Validate inputs
     if not Path(args.input).exists():
@@ -285,6 +309,7 @@ Examples:
             methods=args.methods,
             save_individual=args.save_individual,
             reference_path=args.reference,
+            columns=args.columns,
         )
         return 0
     except Exception as e:
