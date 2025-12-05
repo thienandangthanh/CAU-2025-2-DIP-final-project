@@ -16,6 +16,10 @@ import matplotlib.pyplot as plt
 
 from dataset import get_dataset
 from model import ZeroDCE
+from plot_utils import configure_publication_style
+
+# Apply consistent publication-quality styling for all plots
+configure_publication_style()
 
 
 def plot_training_history(history, save_dir: str = "./training_plots"):

@@ -29,6 +29,8 @@ zero-dce-keras/
 ├── train.py                    # Training script with CLI
 ├── compare.py                  # Inference and comparison tool
 ├── classical_methods.py        # Classical enhancement methods
+├── plot_utils.py               # Publication-quality plotting utilities
+├── layout_utils.py             # Grid layout calculation utilities
 ├── zero_dce.py                 # Original monolithic implementation (reference)
 ├── gui_app.py                  # PyQt6 GUI application entry point
 ├── gui/                        # GUI components
@@ -120,6 +122,31 @@ source .venv/bin/activate.fish
 # Using uv (installs both regular and dev dependencies)
 uv sync
 ```
+
+5. **(Optional) Install LaTeX for publication-quality plots**
+
+For generating manuscript-ready figures with LaTeX-rendered text:
+
+```bash
+# Linux (Debian/Ubuntu)
+sudo apt-get install texlive texlive-latex-extra cm-super dvipng
+
+# Linux (Arch)
+sudo pacman -S texlive-core texlive-bin texlive-latexextra
+
+# Linux (Fedora/RHEL)
+sudo dnf install texlive texlive-latex texlive-dvipng
+
+# macOS (requires Homebrew)
+brew install --cask mactex
+# Or smaller BasicTeX distribution:
+brew install --cask basictex
+
+# Windows (in WSL2 Ubuntu)
+sudo apt-get install texlive texlive-latex-extra cm-super dvipng
+```
+
+**Note:** LaTeX is optional. If not installed, plots will use standard matplotlib rendering with a warning message. This is fine for development and testing. LaTeX rendering is only needed for publication-quality figures in manuscripts.
 
 ### Windows Users: WSL2 (Required)
 
@@ -488,6 +515,21 @@ Classical image enhancement methods for comparison.
 - `enhance_with_histogram_eq(image)`: Histogram Equalization
 - `enhance_with_clahe(image, clip_limit)`: CLAHE
 - `enhance_with_gamma_correction(image, gamma)`: Gamma correction
+
+### `plot_utils.py`
+
+Utilities for consistent publication-quality plotting across all scripts.
+
+**Key functions:**
+- `configure_publication_style()`: Apply manuscript-ready styling to all matplotlib plots
+- `check_latex_available()`: Detect if LaTeX is installed on the system
+- `get_publication_style()`: Get matplotlib configuration dictionary
+
+**Features:**
+- Automatic LaTeX detection (enables LaTeX rendering if available)
+- Consistent serif fonts and sizes for manuscripts
+- Colorblind-friendly color palette
+- Graceful fallback when LaTeX is not installed
 
 ## Testing
 

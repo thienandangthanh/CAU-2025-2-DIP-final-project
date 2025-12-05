@@ -21,6 +21,10 @@ from PIL import Image
 from classical_methods import CLASSICAL_METHODS
 from layout_utils import calculate_optimal_grid_layout
 from model import ZeroDCE
+from plot_utils import configure_publication_style
+
+# Apply consistent publication-quality styling for all plots
+configure_publication_style()
 
 
 def load_model_for_inference(weights_path: str) -> ZeroDCE:
